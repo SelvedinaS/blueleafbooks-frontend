@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>Store - BlueLeafBooks</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="store.html">Store</a></li>
+        <li><a href="cart.html">Cart</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h1 class="section-title">All Books</h1>
+
+    <div class="filters">
+      <input type="text" id="search-input" placeholder="Search books..." style="flex: 1;">
+      <select id="genre-filter">
+        <option value="">All Genres</option>
+      </select>
+      <input type="number" id="min-price" placeholder="Min Price" style="width: 120px;">
+      <input type="number" id="max-price" placeholder="Max Price" style="width: 120px;">
+      <select id="sort-by">
+        <option value="createdAt">Newest First</option>
+        <option value="popularity">Most Popular</option>
+        <option value="rating">Highest Rated</option>
+        <option value="price">Price: Low to High</option>
+      </select>
+      <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+    </div>
+
+    <div id="books-container" class="books-grid"></div>
+  </div>
+
+  <script src="./js/api.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/books.js"></script>
+  <script>
+    function showStoreError(message) {
+      const el = document.getElementById('books-container');
+      if (el) el.innerHTML = `<p class="alert alert-error">${message}</p>`;
+    }
+
+    // Apply filters
+    function applyFilters() {
+      const sortBy = document.getElementById('sort-by').value;
+
+      const filters = {
+        genre: document.getElementById('genre-filter').value,
+        search: document.getElementById('search-input').value,
+        minPrice: document.getElementById('min-price').value,
+        maxPrice: document.getElementById('max-price').value,
+        sortBy,
+        order: sortBy === 'price' ? 'asc' : 'desc'
+      };
+
+      // Remove empty filters
+      Object.keys(filters).forEach(key => {
+        if (!filters[key]) delete filters[key];
+      });
+
+      try {
+        loadBooks(filters);
+      } catch (e) {
+        console.error(e);
+        showStoreError("Couldn’t load books. Please refresh.");
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        // Load genres AFTER DOM is ready
+        loadGenres();
+
+        // URL param genre
+        const urlParams = new URLSearchParams(window.location.search);
+        const genreParam = urlParams.get('genre');
+
+        let currentFilters = {};
+        if (genreParam) {
+          currentFilters.genre = genreParam;
+          const genreSelect = document.getElementById('genre-filter');
+          if (genreSelect) genreSelect.value = genreParam;
+        }
+
+        loadBooks(currentFilters);
+
+        // Search on Enter
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+          searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') applyFilters();
+          });
+        }
+      } catch (err) {
+        console.error('Store init error:', err);
+        showStoreError("Couldn’t load the store. Please refresh.");
+      }
+    });
+  </script>
+
+  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 1rem;">Privacy Policy</a>
+        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 1rem;">Terms & Conditions</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

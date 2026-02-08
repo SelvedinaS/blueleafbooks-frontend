@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1" />
+  <title>Thank You - BlueLeafBooks</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="store.html">Store</a></li>
+        <li><a href="customer-dashboard.html">My Library</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container" style="margin-top: 3rem; text-align: center; max-width: 600px;">
+    <h1 style="color: var(--primary-color);">Thank you for your purchase!</h1>
+    <p style="font-size: 1.1rem; margin: 1rem 0;">Your download will start automatically.</p>
+
+    <p style="margin: 1rem 0;">
+      <a id="manual-link" href="#" class="btn btn-primary" style="display: inline-block; margin-top: 1rem;">
+        Download Book (PDF)
+      </a>
+    </p>
+
+    <p id="download-status" style="margin-top: 1rem; color: #666;"></p>
+
+    <p style="margin-top: 2rem;">
+      <a href="customer-dashboard.html" style="color: var(--primary-color);">View in My Library</a>
+    </p>
+  </div>
+
+  <script src="./js/api.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/books.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookId = urlParams.get("id");
+
+    function escapeFileName(name) {
+      return String(name || "book").replace(/[^a-z0-9]/gi, "_");
+    }
+
+    function buildFileUrl(fileValue) {
+      // Ako je već full URL (npr. Cloudinary) -> vrati kako jeste
+      if (!fileValue) return null;
+      if (/^https?:\/\//i.test(fileValue)) return fileValue;
+
+      // Ako je relative path -> sklopi sa backend domenom
+      const clean = String(fileValue).replace(/^\/+/, "");
+      const base = API_BASE_URL.replace(/\/api\/?$/, ""); // https://...onrender.com
+      return `${base}/${clean}`;
+    }
+
+    async function startDownload() {
+      const container = document.querySelector('.container');
+      const statusEl = document.getElementById('download-status');
+      const manualLink = document.getElementById("manual-link");
+
+      if (!bookId) {
+        container.innerHTML = '<p class="alert alert-error">Book ID not provided.</p>';
+        return;
+      }
+
+      try {
+        // provjera login-a
+        if (!isAuthenticated()) {
+          alert('Please login to download your purchase.');
+          window.location.href = 'login.html';
+          return;
+        }
+
+        statusEl.textContent = 'Preparing your download...';
+
+        const book = await booksAPI.getById(bookId);
+
+        if (!book || !book.pdfFile) {
+          container.innerHTML = '<p class="alert alert-error">Book file not found. Please contact support.</p>';
+          return;
+        }
+
+        const pdfUrl = buildFileUrl(book.pdfFile);
+        if (!pdfUrl) {
+          container.innerHTML = '<p class="alert alert-error">Invalid PDF link. Please contact support.</p>';
+          return;
+        }
+
+        const fileName = `${escapeFileName(book.title)}.pdf`;
+
+        // manual link
+        manualLink.href = pdfUrl;
+        manualLink.setAttribute('download', fileName);
+
+        // auto download
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.setAttribute('download', fileName);
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        statusEl.textContent = 'If your download did not start, use the button above.';
+      } catch (err) {
+        console.error('Download error:', err);
+        document.getElementById('download-status').textContent = '';
+        document.querySelector('.container').innerHTML =
+          '<p class="alert alert-error">Error downloading book. Please try again or contact support.</p>';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      startDownload();
+    });
+  </script>
+</body>
+</html>

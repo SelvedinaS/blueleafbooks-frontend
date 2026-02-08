@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>Upload Book - BlueLeafBooks</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="author-dashboard.html">Dashboard</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="form-container" style="max-width: 700px;">
+      <h2 id="form-title">Upload New Book</h2>
+      <div id="alert-container"></div>
+
+      <form id="book-form" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="title">Title</label>
+          <input type="text" id="title" name="title" required>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="genre">Genre</label>
+          <input type="text" id="genre" name="genre" required placeholder="e.g., Fiction, Science Fiction, Mystery">
+        </div>
+
+        <div class="form-group">
+          <label for="price">Price (USD)</label>
+          <input type="number" id="price" name="price" step="0.01" min="0" required>
+        </div>
+
+        <div class="form-group">
+          <label for="coverImage">Cover Image</label>
+          <input type="file" id="coverImage" name="coverImage" accept="image/*">
+        </div>
+
+        <div class="form-group">
+          <label for="pdfFile">PDF File</label>
+          <input type="file" id="pdfFile" name="pdfFile" accept=".pdf">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Book</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="./js/api.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/books.js"></script>
+  <script>
+    requireAuth();
+    requireRole('author');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const bookId = urlParams.get('id');
+      const isEditMode = !!bookId;
+
+      if (isEditMode) {
+        document.getElementById('form-title').textContent = 'Edit Book';
+        loadBookForEdit(bookId);
+      }
+
+      async function loadBookForEdit(id) {
+        try {
+          const book = await booksAPI.getById(id);
+          document.getElementById('title').value = book.title;
+          document.getElementById('description').value = book.description;
+          document.getElementById('genre').value = book.genre;
+          document.getElementById('price').value = book.price;
+        } catch (error) {
+          alert('Error loading book: ' + error.message);
+          window.location.href = 'author-dashboard.html';
+        }
+      }
+
+      document.getElementById('book-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const alertContainer = document.getElementById('alert-container');
+        alertContainer.innerHTML = '';
+
+        const formData = new FormData();
+        formData.append('title', document.getElementById('title').value);
+        formData.append('description', document.getElementById('description').value);
+        formData.append('genre', document.getElementById('genre').value);
+        formData.append('price', document.getElementById('price').value);
+
+        const coverFile = document.getElementById('coverImage').files[0];
+        const pdfFile = document.getElementById('pdfFile').files[0];
+
+        if (isEditMode) {
+          if (coverFile) formData.append('coverImage', coverFile);
+          if (pdfFile) formData.append('pdfFile', pdfFile);
+        } else {
+          if (!coverFile || !pdfFile) {
+            alertContainer.innerHTML = '<div class="alert alert-error">Cover image and PDF file are required</div>';
+            return;
+          }
+          formData.append('coverImage', coverFile);
+          formData.append('pdfFile', pdfFile);
+        }
+
+        try {
+          if (isEditMode) {
+            await booksAPI.update(bookId, formData);
+            alert('Book updated successfully! It will be reviewed again before going live.');
+          } else {
+            await booksAPI.create(formData);
+            alert('Book submitted successfully! It will be reviewed before going live.');
+          }
+          window.location.href = 'author-dashboard.html';
+        } catch (error) {
+          alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

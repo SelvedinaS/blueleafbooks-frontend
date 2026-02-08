@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>BlueLeafBooks - Digital Book Marketplace</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="store.html">Store</a></li>
+        <li><a href="cart.html">Cart</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Welcome to BlueLeafBooks</h1>
+    <p>Discover and purchase amazing digital books from talented authors</p>
+    <a href="store.html" class="btn btn-primary">Browse Books</a>
+  </div>
+
+  <div class="container">
+    <section class="section">
+      <h2 class="section-title">Best Sellers</h2>
+      <div id="bestsellers" class="books-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Newly Added</h2>
+      <div id="new-books" class="books-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Browse by Category</h2>
+      <div id="categories" style="display: flex; gap: 1rem; flex-wrap: wrap;"></div>
+    </section>
+  </div>
+
+  <script src="./js/api.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/books.js"></script>
+
+  <script>
+    function showEmpty(containerId, msg) {
+      const el = document.getElementById(containerId);
+      if (el) el.innerHTML = `<p style="color:#666;">${msg}</p>`;
+    }
+
+    async function loadBestsellers() {
+      try {
+        const books = await booksAPI.getBestsellers();
+        displayBooks(books, 'bestsellers');
+      } catch (error) {
+        console.error('Error loading bestsellers:', error);
+        showEmpty('bestsellers', "Couldn’t load bestsellers right now.");
+      }
+    }
+
+    async function loadNewBooks() {
+      try {
+        const books = await booksAPI.getNew();
+        displayBooks(books, 'new-books');
+      } catch (error) {
+        console.error('Error loading new books:', error);
+        showEmpty('new-books', "Couldn’t load new books right now.");
+      }
+    }
+
+    async function loadCategories() {
+      try {
+        const genres = await booksAPI.getGenres();
+        const container = document.getElementById('categories');
+        container.innerHTML = (genres || []).map(genre => `
+          <a href="store.html?genre=${encodeURIComponent(genre)}" class="btn btn-secondary">
+            ${genre}
+          </a>
+        `).join('');
+        if (!genres || !genres.length) showEmpty('categories', "No categories available.");
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        showEmpty('categories', "Couldn’t load categories right now.");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.querySelector(".menu-btn");
+      const nav = document.querySelector(".nav-links");
+
+      if (btn && nav) {
+        btn.addEventListener("click", () => {
+          nav.classList.toggle("open");
+          btn.setAttribute("aria-expanded", nav.classList.contains("open") ? "true" : "false");
+        });
+      }
+
+      loadBestsellers();
+      loadNewBooks();
+      loadCategories();
+    });
+  </script>
+
+  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 1rem;">Privacy Policy</a>
+        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 1rem;">Terms & Conditions</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>
