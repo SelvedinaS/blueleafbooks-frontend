@@ -241,7 +241,9 @@ function proceedToCheckout() {
 
 // Initialize cart on page load
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.location.pathname.includes('cart.html')) {
+  // Netlify/redirects sometimes serve pretty URLs (e.g. /cart instead of /cart.html).
+  // So we initialize the cart whenever the cart container exists.
+  if (document.getElementById('cart-items')) {
     loadCart();
   }
 });
