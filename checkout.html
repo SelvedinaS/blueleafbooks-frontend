@@ -208,70 +208,101 @@
     }
 
     function initializePayPalOrTestMode() {
-      const container = document.getElementById('paypal-button-container');
-      if (!container) return;
+  const container = document.getElementById('paypal-button-container');
+  if (!container) return;
 
-      if (window.paypal && typeof paypal.Buttons === 'function' && typeof paypalAPI !== 'undefined') {
-        container.innerHTML = '';
+  // If PayPal already loaded, render immediately
+  if (window.paypal && typeof paypal.Buttons === 'function' && typeof paypalAPI !== 'undefined') {
+    container.innerHTML = '';
+    renderPayPalButtons();
+    return;
+  }
 
-        paypal.Buttons({
-          createOrder: async () => {
-            const items = cartBooks.map(b => ({ bookId: b._id }));
-            const payload = { items };
+  // Load PayPal client-id from backend, then inject SDK script
+  try {
+    const res = await fetch(`${API_BASE_URL}/paypal/client-id`);
+    const data = await safeJson(res);
+    const clientId = data && data.clientId ? data.clientId : '';
 
-            if (appliedCoupon && appliedCoupon.success) {
-              payload.discountCode = appliedCoupon.discountCode;
-            }
+    if (!clientId) {
+      throw new Error('PayPal client-id is missing on the backend. Set PAYPAL_CLIENT_ID in Render/ENV and redeploy.');
+    }
 
-            const res = await paypalAPI.createOrder(payload);
-            return res.id || res.orderId;
-          },
-          onApprove: async (data) => {
-            await paypalAPI.captureOrder(data.orderID);
+    // Avoid loading twice
+    if (!document.getElementById('paypal-sdk')) {
+      const script = document.createElement('script');
+      script.id = 'paypal-sdk';
+      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD`;
+      script.onload = () => {
+        try {
+          container.innerHTML = '';
+          renderPayPalButtons();
+        } catch (e) {
+          container.innerHTML = `<p class="alert alert-error">${escapeHtml(e.message || 'PayPal init error')}</p>`;
+        }
+      };
+      script.onerror = () => {
+        container.innerHTML = `<p class="alert alert-error">Failed to load PayPal SDK. Check adblock/network.</p>`;
+      };
+      document.head.appendChild(script);
+    }
+  } catch (err) {
+    // Fallback to test mode button with clear instructions
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <p><strong>PayPal is not configured yet.</strong></p>
+        <p>${escapeHtml(err.message || 'Missing PayPal configuration.')}</p>
+        <p style="margin-top:0.75rem;">For now, you can test checkout using this button:</p>
+        <button class="btn btn-primary" onclick="completeOrder()" style="margin-top: 1rem;">
+          Complete Order (Test Mode)
+        </button>
+      </div>
+    `;
+  }
+}
 
-            const orderData = {
-              items: cartBooks.map(book => ({ bookId: book._id })),
-              paymentId: data.orderID
-            };
+function renderPayPalButtons() {
+  const container = document.getElementById('paypal-button-container');
+  if (!container) return;
 
-            if (appliedCoupon && appliedCoupon.success) {
-              orderData.discountCode = appliedCoupon.discountCode;
-              orderData.discountPercentage = appliedCoupon.discountPercentage;
-              orderData.discountAmount = appliedCoupon.discountAmount;
-            }
+  paypal.Buttons({
+    createOrder: async () => {
+      const items = cartBooks.map(b => ({ bookId: b._id }));
+      const payload = { items };
 
-            await ordersAPI.create(orderData);
-
-            localStorage.removeItem('cart');
-            appliedCoupon = null;
-
-            alert('Payment successful! Redirecting to your library...');
-            window.location.href = 'customer-dashboard.html';
-          },
-          onError: (err) => {
-            console.error('PayPal error:', err);
-            container.innerHTML = `<p class="alert alert-error">PayPal error. Please try again.</p>`;
-          }
-        }).render('#paypal-button-container');
-
-        return;
+      if (appliedCoupon && appliedCoupon.success) {
+        payload.discountCode = appliedCoupon.discountCode;
       }
 
-      container.innerHTML = `
-        <div class="alert alert-info">
-          <p><strong>PayPal is not configured yet.</strong></p>
-          <p>When you're ready:</p>
-          <ol>
-            <li>Replace YOUR_CLIENT_ID in the PayPal script tag</li>
-            <li>Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in backend env</li>
-          </ol>
-          <p style="margin-top:0.75rem;">For now, you can test checkout using this button:</p>
-          <button class="btn btn-primary" onclick="completeOrder()" style="margin-top: 1rem;">
-            Complete Order (Test Mode)
-          </button>
-        </div>
-      `;
+      const res = await paypalAPI.createOrder(payload);
+      return res.id || res.orderId;
+    },
+    onApprove: async (data) => {
+      const capture = await paypalAPI.captureOrder(data.orderID);
+
+      const orderData = {
+        items: cartBooks.map(book => ({ bookId: book._id })),
+        paymentId: (capture && (capture.paymentId || capture.orderId)) || data.orderID
+      };
+
+      if (appliedCoupon && appliedCoupon.success) {
+        orderData.discountCode = appliedCoupon.discountCode;
+      }
+
+      await ordersAPI.create(orderData);
+
+      localStorage.removeItem('cart');
+      appliedCoupon = null;
+
+      alert('Payment successful! Redirecting to your library...');
+      window.location.href = 'customer-dashboard.html';
+    },
+    onError: (err) => {
+      console.error('PayPal error:', err);
+      container.innerHTML = `<p class="alert alert-error">PayPal error. Please try again.</p>`;
     }
+  }).render('#paypal-button-container');
+}
 
     async function completeOrder() {
       try {

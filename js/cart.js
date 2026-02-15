@@ -28,6 +28,24 @@ async function loadCart() {
       body: JSON.stringify({ bookIds: cart })
     }).then(res => res.json());
 
+    // ✅ Robustness: backend must return an array
+    if (!Array.isArray(books)) {
+      const msg = (books && (books.message || books.error)) ? (books.message || books.error) : 'Invalid response from server.';
+      throw new Error(msg);
+    }
+
+    // ✅ If nothing comes back, the cart likely contains stale IDs (e.g., DB reset)
+    if (books.length === 0) {
+      localStorage.setItem('cart', JSON.stringify([]));
+      currentCartBooks = [];
+      currentCartCoupon = null;
+      document.getElementById('cart-items').innerHTML =
+        '<p class="alert alert-info">Your cart is empty (items were removed or no longer available). <a href="store.html">Browse books</a></p>';
+      document.getElementById('cart-summary').style.display = 'none';
+      updateCartCount();
+      return;
+    }
+
     currentCartBooks = books;
 
     // If some books are no longer returned (deleted or unavailable), remove them from cart
@@ -166,6 +184,15 @@ async function applyCartCoupon() {
   if (!currentCartBooks || currentCartBooks.length === 0) {
     messageEl.textContent = 'Cart is empty.';
     messageEl.style.color = 'red';
+    return;
+  }
+
+  // Coupon apply requires login (backend endpoint is protected)
+  if (!isAuthenticated()) {
+    currentCartCoupon = null;
+    messageEl.textContent = 'Please login to apply a discount code.';
+    messageEl.style.color = 'red';
+    setTimeout(() => { window.location.href = 'login.html'; }, 600);
     return;
   }
 
