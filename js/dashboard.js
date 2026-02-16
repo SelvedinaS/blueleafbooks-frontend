@@ -369,6 +369,60 @@ function displayAdminDashboard(data) {
   `;
 
   displayPendingBooks(pendingBooks);
+  displayAuthorsTable(data.authors);
+}
+
+
+// Display authors table (admin)
+function displayAuthorsTable(authors) {
+  const container = document.getElementById('authors-table');
+  if (!container) return;
+
+  if (!Array.isArray(authors) || authors.length === 0) {
+    container.innerHTML = '<p class="alert alert-info">No authors found.</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Author</th>
+            <th>Email</th>
+            <th>PayPal</th>
+            <th>Status</th>
+            <th>Reason</th>
+            <th>Blocked At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${authors.map(a => {
+            const status = a.isBlocked ? 'Blocked' : 'Active';
+            const blockedAt = a.blockedAt ? new Date(a.blockedAt).toLocaleString() : '-';
+            const reason = a.blockedReason ? a.blockedReason : '-';
+            return `
+              <tr>
+                <td>${a.name || '—'}</td>
+                <td>${a.email || '—'}</td>
+                <td>${a.payoutPaypalEmail || '—'}</td>
+                <td><span class="badge ${a.isBlocked ? 'badge-danger' : 'badge-success'}">${status}</span></td>
+                <td>${reason}</td>
+                <td>${blockedAt}</td>
+                <td>
+                  ${a.isBlocked
+                    ? `<button class="btn btn-success btn-small" onclick="unblockAuthor('${a._id}')">Unblock</button>`
+                    : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${a._id}')">Block</button>`
+                  }
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 // Display pending books
@@ -439,3 +493,28 @@ async function rejectBook(bookId) {
     alert('Error rejecting book: ' + error.message);
   }
 }
+
+
+// Block author prompt
+async function blockAuthorPrompt(authorId) {
+  const reason = prompt('Reason for blocking (optional):', 'Unpaid platform fee');
+  try {
+    await adminAPI.blockAuthor(authorId, reason || 'Unpaid platform fee');
+    alert('Author blocked. Their books are now hidden and they cannot publish new ones.');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error blocking author: ' + error.message);
+  }
+}
+
+// Unblock author
+async function unblockAuthor(authorId) {
+  try {
+    await adminAPI.unblockAuthor(authorId);
+    alert('Author unblocked.');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error unblocking author: ' + error.message);
+  }
+}
+

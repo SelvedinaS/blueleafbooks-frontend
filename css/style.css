@@ -579,3 +579,49 @@ table tr:hover {
   font-size: 14px;
   margin-top: 4px;
 }
+
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-success { background: #e6f7ed; color: #1e7e34; }
+.badge-danger { background: #fdecea; color: #b02a37; }
+.badge-warning { background: #fff4e5; color: #8a5a00; }
+
+
+/* =========================
+   MOBILE RESPONSIVE FIXES
+========================= */
+@media (max-width: 768px) {
+  body { padding: 0; margin: 0; }
+  .container { padding: 1rem; }
+  header nav { flex-direction: column; gap: 10px; text-align: center; }
+  .nav-links { flex-direction: column; gap: 10px; }
+  .books-grid { grid-template-columns: 1fr !important; gap: 15px; }
+  .book-card { width: 100%; }
+  .book-details { flex-direction: column; gap: 15px; }
+  .book-cover img { width: 100%; height: auto; }
+  .form-container { width: 100%; padding: 20px; }
+  button, .btn { width: 100%; font-size: 16px; }
+  table { font-size: 14px; }
+  td, th { padding: 8px; }
+}
+
+/* Legal pages card */
+.page-card{
+  max-width: 900px;
+  margin: 2rem auto;
+  background: var(--white);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+.muted{ color:#666; margin-bottom:1.25rem; }
+.page-card h1{ margin-bottom: .5rem; }
+.page-card h2{ margin-top: 1.5rem; }
+.page-card ul{ padding-left: 1.2rem; }

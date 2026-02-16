@@ -217,6 +217,32 @@ const adminAPI = {
 
   getAllAuthors: () => apiRequest('/admin/authors'),
 
+  // Manual platform fee tracking
+  getFeeStatus: (period) => apiRequest(`/admin/fees${period ? '?period=' + encodeURIComponent(period) : ''}`),
+
+  markFeePaid: (authorId, period, note) =>
+    apiRequest(`/admin/fees/${authorId}/mark-paid`, {
+      method: 'POST',
+      body: JSON.stringify({ period, note })
+    }),
+
+  markFeeUnpaid: (authorId, period, note) =>
+    apiRequest(`/admin/fees/${authorId}/mark-unpaid`, {
+      method: 'POST',
+      body: JSON.stringify({ period, note })
+    }),
+
+  blockAuthor: (authorId, reason) =>
+    apiRequest(`/admin/authors/${authorId}/block`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason })
+    }),
+
+  unblockAuthor: (authorId) =>
+    apiRequest(`/admin/authors/${authorId}/unblock`, {
+      method: 'PATCH'
+    }),
+
   getAllOrders: () => apiRequest('/admin/orders'),
 
   getEarnings: () => apiRequest('/admin/earnings'),

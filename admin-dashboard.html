@@ -179,11 +179,88 @@
     }
 
     async function loadAllAuthors() {
-      const authors = await adminAPI.getAllAuthors();
       const container = document.getElementById('dashboard-content');
+
+      // Default: previous month (YYYY-MM)
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const defaultPeriod = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+
+      const [authors, feeData] = await Promise.all([
+        adminAPI.getAllAuthors(),
+        adminAPI.getFeeStatus(defaultPeriod)
+      ]);
+
+      const rows = (feeData && feeData.rows) ? feeData.rows : [];
+      const feePct = feeData && feeData.feePercentage ? feeData.feePercentage : 10;
 
       container.innerHTML = `
         <h2>All Authors</h2>
+
+        <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <h3 style="margin-bottom: 0.5rem;">Manual Platform Fee Status</h3>
+          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
+            Authors pay the platform fee manually. Use this table to track who has paid for each month and block/unblock if needed.
+          </p>
+
+          <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+            <div class="form-group" style="max-width: 220px;">
+              <label for="admin-fee-period">Period (YYYY-MM)</label>
+              <input type="month" id="admin-fee-period" value="${defaultPeriod}">
+            </div>
+            <button class="btn btn-primary" onclick="loadFeeStatusForPeriod()">Load</button>
+            <div style="margin-left:auto; color:#666; font-size:0.95rem;">
+              Fee: <strong id="admin-fee-pct">${feePct}%</strong> • Due date: <strong id="admin-fee-duedate">${new Date(feeData.dueDate).toLocaleDateString()}</strong>
+            </div>
+          </div>
+
+          <div id="admin-fee-alert" style="margin-top:0.75rem;"></div>
+
+          <div style="overflow:auto; margin-top: 1rem;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Gross Sales</th>
+                  <th>Platform Fee Due</th>
+                  <th>Paid?</th>
+                  <th>Paid At</th>
+                  <th>Overdue</th>
+                  <th>Blocked</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-fee-tbody">
+                ${rows.map(r => `
+                  <tr>
+                    <td>
+                      <strong>${r.name}</strong><br/>
+                      <span style="color:#666; font-size:0.9rem;">${r.email}</span>
+                    </td>
+                    <td>$${Number(r.grossSales || 0).toFixed(2)}</td>
+                    <td>$${Number(r.platformFeeDue || 0).toFixed(2)}</td>
+                    <td>
+                      ${r.isPaid
+                        ? '<span class="badge badge-success">PAID</span>'
+                        : '<span class="badge badge-warning">UNPAID</span>'}
+                    </td>
+                    <td>${r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '<span style="color:#999;">—</span>'}</td>
+                    <td>${r.isOverdue ? '<span class="badge badge-danger">OVERDUE</span>' : '<span style="color:#999;">—</span>'}</td>
+                    <td>${r.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
+                    <td style="min-width:260px;">
+                      ${r.isPaid
+                        ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${r.authorId}')">Mark Unpaid</button>`
+                        : `<button class="btn btn-primary" onclick="markAuthorPaid('${r.authorId}')">Mark Paid</button>`}
+                      ${r.isBlocked
+                        ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
+                        : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthor('${r.authorId}')">Block</button>`}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <h3 style="margin-bottom: 0.5rem;">Monthly Reports</h3>
@@ -204,7 +281,6 @@
               <label for="admin-report-month">Month</label>
               <select id="admin-report-month">
                 ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
-                  const now = new Date();
                   const selected = (m === (now.getMonth() + 1)) ? 'selected' : '';
                   return `<option value="${m}" ${selected}>${m}</option>`;
                 }).join('')}
@@ -212,7 +288,7 @@
             </div>
             <div class="form-group" style="max-width: 140px;">
               <label for="admin-report-year">Year</label>
-              <input type="number" id="admin-report-year" min="2000" max="2100" value="${new Date().getFullYear()}" />
+              <input type="number" id="admin-report-year" min="2000" max="2100" value="${now.getFullYear()}" />
             </div>
             <button class="btn btn-primary" onclick="downloadAdminAuthorMonthlyReport()">Download PDF</button>
           </div>
@@ -240,6 +316,81 @@
         </table>
       `;
     }
+
+    async function loadFeeStatusForPeriod() {
+      const alertEl = document.getElementById('admin-fee-alert');
+      if (alertEl) alertEl.innerHTML = '';
+      const periodInput = document.getElementById('admin-fee-period');
+      const period = periodInput ? periodInput.value : '';
+      try {
+        const feeData = await adminAPI.getFeeStatus(period);
+        const tbody = document.getElementById('admin-fee-tbody');
+        if (!tbody) return;
+
+        const rows = feeData.rows || [];
+        tbody.innerHTML = rows.map(r => `
+          <tr>
+            <td>
+              <strong>${r.name}</strong><br/>
+              <span style="color:#666; font-size:0.9rem;">${r.email}</span>
+            </td>
+            <td>$${Number(r.grossSales || 0).toFixed(2)}</td>
+            <td>$${Number(r.platformFeeDue || 0).toFixed(2)}</td>
+            <td>
+              ${r.isPaid
+                ? '<span class="badge badge-success">PAID</span>'
+                : '<span class="badge badge-warning">UNPAID</span>'}
+            </td>
+            <td>${r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '<span style="color:#999;">—</span>'}</td>
+            <td>${r.isOverdue ? '<span class="badge badge-danger">OVERDUE</span>' : '<span style="color:#999;">—</span>'}</td>
+            <td>${r.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
+            <td style="min-width:260px;">
+              ${r.isPaid
+                ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${r.authorId}')">Mark Unpaid</button>`
+                : `<button class="btn btn-primary" onclick="markAuthorPaid('${r.authorId}')">Mark Paid</button>`}
+              ${r.isBlocked
+                ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
+                : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthor('${r.authorId}')">Block</button>`}
+            </td>
+          </tr>
+        `).join('');
+
+        const pctEl = document.getElementById('admin-fee-pct');
+        if (pctEl) pctEl.textContent = `${feeData.feePercentage}%`;
+        const dueEl = document.getElementById('admin-fee-duedate');
+        if (dueEl) dueEl.textContent = new Date(feeData.dueDate).toLocaleDateString();
+
+      } catch (error) {
+        if (alertEl) alertEl.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+      }
+    }
+
+    async function markAuthorPaid(authorId) {
+      const period = document.getElementById('admin-fee-period')?.value || '';
+      const note = prompt('Optional note (e.g., PayPal transaction ID):') || '';
+      try {
+        await adminAPI.markFeePaid(authorId, period, note);
+        const alertEl = document.getElementById('admin-fee-alert');
+        if (alertEl) alertEl.innerHTML = `<div class="alert alert-success">Marked as PAID.</div>`;
+        await loadFeeStatusForPeriod();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function markAuthorUnpaid(authorId) {
+      const period = document.getElementById('admin-fee-period')?.value || '';
+      const note = prompt('Optional note (e.g., reason):') || '';
+      try {
+        await adminAPI.markFeeUnpaid(authorId, period, note);
+        const alertEl = document.getElementById('admin-fee-alert');
+        if (alertEl) alertEl.innerHTML = `<div class="alert alert-success">Marked as UNPAID.</div>`;
+        await loadFeeStatusForPeriod();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
 
     async function downloadAdminAuthorMonthlyReport() {
       const alertContainer = document.getElementById('admin-author-reports-alert');
