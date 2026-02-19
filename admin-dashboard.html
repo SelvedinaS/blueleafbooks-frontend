@@ -262,9 +262,9 @@
                       ${r.isPaid
                         ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${r.authorId}')">Mark Unpaid</button>`
                         : `<button class="btn btn-primary" onclick="markAuthorPaid('${r.authorId}')">Mark Paid</button>`}
-                      ${r.isBlocked
-                        ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
-                        : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthor('${r.authorId}')">Block</button>`}
+              ${r.isBlocked
+                ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
+                : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}
                     </td>
                   </tr>
                 `).join('')}
@@ -361,7 +361,7 @@
                 : `<button class="btn btn-primary" onclick="markAuthorPaid('${r.authorId}')">Mark Paid</button>`}
               ${r.isBlocked
                 ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
-                : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthor('${r.authorId}')">Block</button>`}
+                : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}
             </td>
           </tr>
         `).join('');
