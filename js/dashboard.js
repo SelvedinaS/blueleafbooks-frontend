@@ -90,6 +90,13 @@ async function displayAuthorDashboard(data) {
     console.error('Error loading payout settings:', error);
   }
 
+  const fmtDate = (d) => {
+    if (!d) return '';
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return '';
+    return dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   container.innerHTML = `
     <div class="stats-grid">
       <div class="stat-card">
@@ -108,20 +115,62 @@ async function displayAuthorDashboard(data) {
         <h3>Unpaid Earnings</h3>
         <div class="value">$${data.unpaidEarnings}</div>
       </div>
-    </div>
-
+    
     <div style="margin-top: 2rem; background: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <h2 style="margin-bottom: 1rem;">Payout Settings</h2>
-      <p style="color: #666; margin-bottom: 1rem;">Add your PayPal email address to publish your books and receive payouts. If this field is empty, your books will not appear in the store. Payouts are processed manually once per month.</p>
-      <div id="payout-settings-alert"></div>
-      <div class="form-group" style="max-width: 500px;">
-        <label for="payout-paypal-email">PayPal Payout Email</label>
-        <input type="email" id="payout-paypal-email" name="payoutPaypalEmail" value="${payoutEmail}" placeholder="your-email@example.com">
+      <h2 style="margin-bottom: 0.5rem;">Platform Fee (10%)</h2>
+      <p style="color:#666; margin-bottom: 0.75rem;">
+        First 30 days are free. After that, the fee is calculated per calendar month.
+        You pay the <strong>previous month</strong> by the <strong>10th of the next month</strong>.
+      </p>
+
+      <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <div style="font-size:0.95rem; color:#666;">Payment email</div>
+          <div style="font-weight:700; color:#0052cc;">${data.adminPaymentEmail || 'blueleafbooks@hotmail.com'}</div>
+        </div>
+
+        <div>
+          <div style="font-size:0.95rem; color:#666;">Trial</div>
+          <div style="font-weight:700;">
+            ${data.isInFirst30Days
+              ? `Free period: ${data.daysUntilFee} day(s) left (ends ${data.trialEndsAt ? new Date(data.trialEndsAt).toLocaleDateString() : '-'})`
+              : `Trial ended on ${data.trialEndsAt ? new Date(data.trialEndsAt).toLocaleDateString() : '-'}`
+            }
+          </div>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="savePayoutSettings()">Save</button>
+
+      <div style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:0.75rem;">
+        <div style="flex:1; min-width:240px; padding:0.75rem; border:1px solid var(--border-color); border-radius:8px;">
+          <div style="font-size:0.9rem; color:#666;">Amount due (last month)</div>
+          <div style="font-weight:800; font-size:1.2rem;">
+            ${data.isInFirst30Days ? '$0.00' : `$${Number(data.lastMonth?.feeDue || 0).toFixed(2)}`}
+          </div>
+          <div style="font-size:0.9rem; color:#666; margin-top:0.25rem;">
+            Period: ${data.lastMonth?.period || '-'} · Due by: ${data.lastMonth?.dueDate ? new Date(data.lastMonth.dueDate).toLocaleDateString() : '-'}
+            ${data.lastMonth?.overdue ? '<span style="color:#c00; font-weight:700;"> · OVERDUE</span>' : ''}
+          </div>
+          <div style="font-size:0.9rem; margin-top:0.25rem;">
+            Status: ${data.lastMonth?.status?.isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}
+          </div>
+        </div>
+
+        <div style="flex:1; min-width:240px; padding:0.75rem; border:1px solid var(--border-color); border-radius:8px;">
+          <div style="font-size:0.9rem; color:#666;">Current month (accrued)</div>
+          <div style="font-weight:800; font-size:1.2rem;">
+            ${data.isInFirst30Days ? '$0.00' : `$${Number(data.currentMonth?.feeAccrued || 0).toFixed(2)}`}
+          </div>
+          <div style="font-size:0.9rem; color:#666; margin-top:0.25rem;">
+            Period: ${data.currentMonth?.period || '-'} · Due by: ${data.currentMonth?.dueDate ? new Date(data.currentMonth.dueDate).toLocaleDateString() : '-'}
+          </div>
+          <div style="font-size:0.9rem; color:#666; margin-top:0.25rem;">
+            Note: only sales after your trial ends are counted.
+          </div>
+        </div>
+      </div>
     </div>
 
-    <h2 style="margin-top: 2rem;">My Books</h2>
+      <h2 style="margin-top: 2rem;">My Books</h2><h2 style="margin-top: 2rem;">My Books</h2>
     <a href="author-upload.html" class="btn btn-primary" style="margin-bottom: 1rem;">Upload New Book</a>
     <div id="author-books-list"></div>
 

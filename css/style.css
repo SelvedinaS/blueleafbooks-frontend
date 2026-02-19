@@ -365,6 +365,16 @@ nav {
   gap: 2rem;
 }
 
+.dashboard-menu-btn {
+  display: none;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--white);
+  font-weight: 600;
+}
+
 .dashboard-sidebar {
   background: var(--white);
   padding: 1.5rem;
@@ -399,6 +409,29 @@ nav {
   background: var(--white);
   padding: 2rem;
   border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .dashboard-menu-btn {
+    display: block;
+  }
+
+  .dashboard-sidebar {
+    display: none;
+  }
+
+  .dashboard-sidebar.is-open {
+    display: block;
+  }
+
+  .dashboard-content {
+    padding: 1.25rem;
+  }
 }
 
 .stats-grid {
@@ -631,4 +664,15 @@ table tr:hover {
 .book-card img {
   backface-visibility: hidden;
   transform: translateZ(0);
+}
+
+
+/* Prevent cover image flicker / repaint on some GPUs */
+.book-card img,
+.book-details img,
+img.book-cover {
+  display: block;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }

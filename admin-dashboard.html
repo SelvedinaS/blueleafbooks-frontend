@@ -19,12 +19,14 @@
 
   <div class="container">
     <div class="dashboard">
+      <button class="dashboard-menu-btn" type="button" aria-expanded="false" aria-controls="dashboard-sidebar">Menu</button>
       <div class="dashboard-sidebar">
         <h3>Admin Panel</h3>
         <ul>
           <li><a href="#" onclick="showSection('overview', event); return false;" class="active">Overview</a></li>
           <li><a href="#" onclick="showSection('books', event); return false;">All Books</a></li>
           <li><a href="#" onclick="showSection('authors', event); return false;">Authors</a></li>
+          <li><a href="#" onclick="showSection('fees', event); return false;">Platform Fees</a></li>
           <li><a href="#" onclick="showSection('orders', event); return false;">Orders</a></li>
           <li><a href="#" onclick="showSection('payouts', event); return false;">Payouts</a></li>
           <li><a href="#" onclick="showSection('coupons', event); return false;">Discount Codes</a></li>
@@ -49,6 +51,19 @@
     requireRole('admin');
 
     let currentSection = 'overview';
+
+    // Mobile: collapse/expand sidebar under the button
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.querySelector('.dashboard-menu-btn');
+      const sidebar = document.querySelector('.dashboard-sidebar');
+      if (btn && sidebar) {
+        sidebar.id = 'dashboard-sidebar';
+        btn.addEventListener('click', () => {
+          const open = sidebar.classList.toggle('is-open');
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+      }
+    });
 
     // Helper: cover image URL (online-safe)
     function getCoverUrl(book) {
@@ -79,6 +94,8 @@
           await loadAllAuthors();
         } else if (section === 'orders') {
           await loadAllOrders();
+        } else if (section === 'fees') {
+          await loadPlatformFees();
         } else if (section === 'payouts') {
           await loadPayouts();
         } else if (section === 'coupons') {
@@ -199,11 +216,23 @@
 
       const [authors, feeData] = await Promise.all([
         adminAPI.getAllAuthors(),
-        adminAPI.getFeeStatus(defaultPeriod)
+        adminAPI.getCycleFees()
       ]);
 
       const rows = (feeData && feeData.rows) ? feeData.rows : [];
       const feePct = feeData && feeData.feePercentage ? feeData.feePercentage : 10;
+
+      // Split authors: new (first 30 days) vs old (fee applies)
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      const nowDate = new Date();
+      const newMembers = [];
+      const oldMembers = [];
+      (authors || []).forEach(a => {
+        const created = a.createdAt ? new Date(a.createdAt) : null;
+        const isNew = created ? (nowDate - created < THIRTY_DAYS_MS) : false;
+        (isNew ? newMembers : oldMembers).push(a);
+      });
+
 
       container.innerHTML = `
         <h2>All Authors</h2>
@@ -232,46 +261,81 @@
               <thead>
                 <tr>
                   <th>Author</th>
-                  <th>Gross Sales</th>
-                  <th>Platform Fee Due</th>
-                  <th>Paid?</th>
-                  <th>Paid At</th>
+                  <th>Billing day</th>
+                  <th>Trial left</th>
+                  <th>Billing cycle</th>
+                  <th>Due by</th>
+                  <th>Gross sales</th>
+                  <th>Amount due</th>
+                  <th>Status</th>
+                  <th>Paid at</th>
                   <th>Overdue</th>
                   <th>Blocked</th>
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="admin-fee-tbody">
-                ${rows.map(r => `
-                  <tr>
-                    <td>
-                      <strong>${r.name}</strong><br/>
-                      <span style="color:#666; font-size:0.9rem;">${r.email}</span>
-                    </td>
-                    <td>$${Number(r.grossSales || 0).toFixed(2)}</td>
-                    <td>$${Number(r.platformFeeDue || 0).toFixed(2)}</td>
-                    <td>
-                      ${r.isPaid
-                        ? '<span class="badge badge-success">PAID</span>'
-                        : '<span class="badge badge-warning">UNPAID</span>'}
-                    </td>
-                    <td>${r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '<span style="color:#999;">—</span>'}</td>
-                    <td>${r.isOverdue ? '<span class="badge badge-danger">OVERDUE</span>' : '<span style="color:#999;">—</span>'}</td>
-                    <td>${r.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
-                    <td style="min-width:260px;">
-                      ${r.isPaid
-                        ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${r.authorId}')">Mark Unpaid</button>`
-                        : `<button class="btn btn-primary" onclick="markAuthorPaid('${r.authorId}')">Mark Paid</button>`}
-              ${r.isBlocked
-                ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
-                : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
+              <tbody id="admin-fee-tbody"></tbody>
             </table>
           </div>
         </div>
+        <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <h3 style="margin-bottom: 0.5rem;">Author Membership Groups</h3>
+          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
+            New members are in their first 30 days (no platform fee due yet). Old members are subject to the 10% platform fee.
+          </p>
+
+          <div style="display:grid; grid-template-columns: 1fr; gap: 1rem;">
+            <div style="overflow:auto;">
+              <h4 style="margin:0.5rem 0;">New Members (First 30 Days) — ${newMembers.length}</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Author</th>
+                    <th>Joined</th>
+                    <th>PayPal Set</th>
+                    <th>Blocked</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${newMembers.map(a => `
+                    <tr>
+                      <td><strong>${a.name}</strong><br/><span style="color:#666; font-size:0.9rem;">${a.email}</span></td>
+                      <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</td>
+                      <td>${a.payoutPaypalEmail ? '<span class="badge badge-success">YES</span>' : '<span class="badge badge-warning">NO</span>'}</td>
+                      <td>${a.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div style="overflow:auto;">
+              <h4 style="margin:0.5rem 0;">Old Members (10% Fee Applies) — ${oldMembers.length}</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Author</th>
+                    <th>Joined</th>
+                    <th>PayPal Set</th>
+                    <th>Blocked</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${oldMembers.map(a => `
+                    <tr>
+                      <td><strong>${a.name}</strong><br/><span style="color:#666; font-size:0.9rem;">${a.email}</span></td>
+                      <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</td>
+                      <td>${a.payoutPaypalEmail ? '<span class="badge badge-success">YES</span>' : '<span class="badge badge-warning">NO</span>'}</td>
+                      <td>${a.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+
 
         <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <h3 style="margin-bottom: 0.5rem;">Monthly Reports</h3>
@@ -331,56 +395,83 @@
     async function loadFeeStatusForPeriod() {
       const alertEl = document.getElementById('admin-fee-alert');
       if (alertEl) alertEl.innerHTML = '';
-      const periodInput = document.getElementById('admin-fee-period');
-      const period = periodInput ? periodInput.value : '';
+
       try {
-        const feeData = await adminAPI.getFeeStatus(period);
+        const feeData = await adminAPI.getCycleFees();
         const tbody = document.getElementById('admin-fee-tbody');
         if (!tbody) return;
 
         const rows = feeData.rows || [];
-        tbody.innerHTML = rows.map(r => `
-          <tr>
-            <td>
-              <strong>${r.name}</strong><br/>
-              <span style="color:#666; font-size:0.9rem;">${r.email}</span>
-            </td>
-            <td>$${Number(r.grossSales || 0).toFixed(2)}</td>
-            <td>$${Number(r.platformFeeDue || 0).toFixed(2)}</td>
-            <td>
-              ${r.isPaid
-                ? '<span class="badge badge-success">PAID</span>'
-                : '<span class="badge badge-warning">UNPAID</span>'}
-            </td>
-            <td>${r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '<span style="color:#999;">—</span>'}</td>
-            <td>${r.isOverdue ? '<span class="badge badge-danger">OVERDUE</span>' : '<span style="color:#999;">—</span>'}</td>
-            <td>${r.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
-            <td style="min-width:260px;">
-              ${r.isPaid
-                ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${r.authorId}')">Mark Unpaid</button>`
-                : `<button class="btn btn-primary" onclick="markAuthorPaid('${r.authorId}')">Mark Paid</button>`}
-              ${r.isBlocked
-                ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
-                : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}
-            </td>
-          </tr>
-        `).join('');
+
+        const fmtDate = (d) => {
+          if (!d) return '—';
+          const dt = new Date(d);
+          if (Number.isNaN(dt.getTime())) return '—';
+          return dt.toLocaleDateString();
+        };
+
+        tbody.innerHTML = rows.map(r => {
+          const name = r.author?.name || '';
+          const email = r.author?.email || '';
+          const authorId = r.author?._id || '';
+          const isBlocked = !!r.author?.isBlocked;
+          const periodKey = r.cycle?.key || '';
+          const isPaid = !!r.status?.isPaid;
+          const overdue = !!r.overdue;
+
+          const trialBadge = r.isInTrial
+            ? `<span class="badge badge-info">TRIAL</span>`
+            : `<span class="badge badge-success">ACTIVE</span>`;
+
+          const amountDue = r.isInTrial ? 0 : Number(r.cycle?.feeDue || 0);
+
+          return `
+            <tr>
+              <td>
+                <strong>${name}</strong><br/>
+                <span style="color:#666; font-size:0.9rem;">${email}</span><br/>
+                ${trialBadge}
+              </td>
+              <td>${r.billingDay || '—'}</td>
+              <td>${r.isInTrial ? `${r.trialDaysRemaining || 0} day(s)` : '—'}</td>
+              <td style="white-space:nowrap;">${fmtDate(r.cycle?.start)} – ${fmtDate(r.cycle?.end)}</td>
+              <td style="white-space:nowrap;">${fmtDate(r.dueDate)}</td>
+              <td>$${Number(r.cycle?.grossSales || 0).toFixed(2)}</td>
+              <td><strong>$${amountDue.toFixed(2)}</strong></td>
+              <td>
+                ${isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}
+              </td>
+              <td>${isPaid ? fmtDate(r.status?.paidAt) : '<span style="color:#999;">—</span>'}</td>
+              <td>${overdue ? '<span class="badge badge-danger">OVERDUE</span>' : '<span style="color:#999;">—</span>'}</td>
+              <td>${isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
+              <td style="min-width:320px;">
+                ${isPaid
+                  ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${authorId}', '${periodKey}')">Mark Unpaid</button>`
+                  : `<button class="btn btn-primary" onclick="markAuthorPaid('${authorId}', '${periodKey}')">Mark Paid</button>`}
+                ${isBlocked
+                  ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${authorId}')">Unblock</button>`
+                  : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${authorId}')">Block</button>`}
+              </td>
+            </tr>
+          `;
+        }).join('');
 
         const pctEl = document.getElementById('admin-fee-pct');
         if (pctEl) pctEl.textContent = `${feeData.feePercentage}%`;
+
+        // Due date differs per author (billing cycle end varies), so we don't show a single due date.
         const dueEl = document.getElementById('admin-fee-duedate');
-        if (dueEl) dueEl.textContent = new Date(feeData.dueDate).toLocaleDateString();
+        if (dueEl) dueEl.textContent = 'Varies per author';
 
       } catch (error) {
         if (alertEl) alertEl.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
       }
     }
 
-    async function markAuthorPaid(authorId) {
-      const period = document.getElementById('admin-fee-period')?.value || '';
-      const note = prompt('Optional note (e.g., PayPal transaction ID):') || '';
+    async function markAuthorPaid(authorId, periodKey) {
+            const note = prompt('Optional note (e.g., PayPal transaction ID):') || '';
       try {
-        await adminAPI.markFeePaid(authorId, period, note);
+        await adminAPI.markCycleFeePaid(authorId, periodKey, note);
         const alertEl = document.getElementById('admin-fee-alert');
         if (alertEl) alertEl.innerHTML = `<div class="alert alert-success">Marked as PAID.</div>`;
         await loadFeeStatusForPeriod();
@@ -389,11 +480,10 @@
       }
     }
 
-    async function markAuthorUnpaid(authorId) {
-      const period = document.getElementById('admin-fee-period')?.value || '';
-      const note = prompt('Optional note (e.g., reason):') || '';
+    async function markAuthorUnpaid(authorId, periodKey) {
+            const note = prompt('Optional note (e.g., reason):') || '';
       try {
-        await adminAPI.markFeeUnpaid(authorId, period, note);
+        await adminAPI.markCycleFeeUnpaid(authorId, periodKey, note);
         const alertEl = document.getElementById('admin-fee-alert');
         if (alertEl) alertEl.innerHTML = `<div class="alert alert-success">Marked as UNPAID.</div>`;
         await loadFeeStatusForPeriod();
@@ -540,7 +630,147 @@
       }
     }
 
-    async function loadPayouts() {
+    
+    async function loadPlatformFees() {
+      // Default period: previous month
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const defaultPeriod = prev.toISOString().slice(0, 7);
+
+      const container = document.getElementById('dashboard-content');
+      container.innerHTML = `
+        <h2>Platform Fees (Authors pay you 10%)</h2>
+        <p class="alert alert-info">
+          Fee is calculated per calendar month (after the first 30 days). Payment deadline is the <strong>10th</strong> of the next month.
+          Payment email: <strong>blueleafbooks@hotmail.com</strong>
+        </p>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-bottom:1rem;">
+          <label style="font-weight:700;">Period (YYYY-MM):</label>
+          <input id="feePeriodInput" type="month" value="${defaultPeriod}" style="padding:0.5rem;">
+          <button class="btn btn-primary btn-small" onclick="refreshPlatformFees()">Load</button>
+        </div>
+
+        <div id="trial-authors-box" style="margin-bottom:1.25rem;"></div>
+        <div id="fees-table-box"></div>
+      `;
+
+      await refreshPlatformFees();
+    }
+
+    async function refreshPlatformFees() {
+      const periodInput = document.getElementById('feePeriodInput');
+      const period = (periodInput && periodInput.value) ? periodInput.value : new Date().toISOString().slice(0,7);
+
+      const [authors, feeReport] = await Promise.all([
+        adminAPI.getAllAuthors(),
+        adminAPI.getFeeStatus(period)
+      ]);
+
+      // Trial authors list
+      const trialAuthors = (authors || []).filter(a => a.isInFirst30Days);
+      const trialBox = document.getElementById('trial-authors-box');
+      if (trialBox) {
+        trialBox.innerHTML = trialAuthors.length
+          ? `
+            <h3 style="margin-bottom:0.5rem;">New Members (Free trial)</h3>
+            <div style="overflow:auto; background:var(--white); border:1px solid var(--border-color); border-radius:8px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Author</th>
+                    <th>Email</th>
+                    <th>Trial ends</th>
+                    <th>Days left</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${trialAuthors.map(a => `
+                    <tr>
+                      <td>${a.name || '—'}</td>
+                      <td>${a.email || '—'}</td>
+                      <td>${a.trialEndsAt ? new Date(a.trialEndsAt).toLocaleDateString() : '—'}</td>
+                      <td>${a.daysUntilFee || 0}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `
+          : '';
+      }
+
+      // Fees table
+      const box = document.getElementById('fees-table-box');
+      if (!box) return;
+
+      const rows = feeReport?.rows || [];
+      const dueDate = feeReport?.dueDate ? new Date(feeReport.dueDate).toLocaleDateString() : '-';
+
+      box.innerHTML = `
+        <h3 style="margin-bottom:0.5rem;">Fee report for ${feeReport?.period || period} (Due by ${dueDate})</h3>
+        <div style="overflow:auto; background:var(--white); border:1px solid var(--border-color); border-radius:8px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Author</th>
+                <th>Email</th>
+                <th>PayPal</th>
+                <th>Gross Sales</th>
+                <th>Fee Due (10%)</th>
+                <th>Status</th>
+                <th>Overdue</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="8">No data</td></tr>' : rows.map(r => `
+                <tr>
+                  <td>${r.name || '—'}</td>
+                  <td>${r.email || '—'}</td>
+                  <td>${r.payoutPaypalEmail || '<span style="color:#999;">Not set</span>'}</td>
+                  <td>$${Number(r.grossSales || 0).toFixed(2)}</td>
+                  <td><strong>$${Number(r.platformFeeDue || 0).toFixed(2)}</strong></td>
+                  <td>${r.isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}</td>
+                  <td>${r.isOverdue ? '<span style="color:#c00; font-weight:700;">YES</span>' : 'No'}</td>
+                  <td style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                    ${r.isPaid
+                      ? `<button class="btn btn-warning btn-small" onclick="markFeeUnpaid('${r.authorId}', '${feeReport?.period || period}')">Mark unpaid</button>`
+                      : `<button class="btn btn-success btn-small" onclick="markFeePaid('${r.authorId}', '${feeReport?.period || period}')">Mark paid</button>`
+                    }
+                    ${r.isBlocked
+                      ? `<button class="btn btn-success btn-small" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
+                      : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`
+                    }
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function markFeePaid(authorId, period) {
+      const note = prompt('Optional note (e.g. transaction id):', '') || '';
+      try {
+        await adminAPI.markFeePaid(authorId, period, note);
+        await refreshPlatformFees();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function markFeeUnpaid(authorId, period) {
+      const note = prompt('Optional note:', '') || '';
+      try {
+        await adminAPI.markFeeUnpaid(authorId, period, note);
+        await refreshPlatformFees();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+async function loadPayouts() {
       const payouts = await adminAPI.getPayouts();
       const container = document.getElementById('dashboard-content');
 

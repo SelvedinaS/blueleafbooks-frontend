@@ -20,6 +20,7 @@
 
   <div class="container">
     <div class="dashboard">
+      <button class="dashboard-menu-btn" type="button" aria-expanded="false" aria-controls="dashboard-sidebar">Menu</button>
       <div class="dashboard-sidebar">
         <h3>Author Dashboard</h3>
         <ul>
@@ -46,6 +47,16 @@
     requireRole('author');
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Mobile: collapse/expand sidebar under the button
+      const btn = document.querySelector('.dashboard-menu-btn');
+      const sidebar = document.querySelector('.dashboard-sidebar');
+      if (btn && sidebar) {
+        sidebar.id = 'dashboard-sidebar';
+        btn.addEventListener('click', () => {
+          const open = sidebar.classList.toggle('is-open');
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+      }
       loadAuthorDashboard();
     });
   </script>

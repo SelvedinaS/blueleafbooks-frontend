@@ -236,8 +236,21 @@ const adminAPI = {
 
   getAllAuthors: () => apiRequest('/admin/authors'),
 
-  // Manual platform fee tracking
+  // Manual platform fee tracking (monthly report)
   getFeeStatus: (period) => apiRequest(`/admin/fees${period ? '?period=' + encodeURIComponent(period) : ''}`),
+
+  // Cycle-based platform fee tracking (join-date billing cycles)
+  getCycleFees: () => apiRequest('/admin/cycle-fees'),
+  markCycleFeePaid: (authorId, periodKey, note) =>
+    apiRequest(`/admin/cycle-fees/${authorId}/mark-paid`, {
+      method: 'POST',
+      body: JSON.stringify({ periodKey, note })
+    }),
+  markCycleFeeUnpaid: (authorId, periodKey, note) =>
+    apiRequest(`/admin/cycle-fees/${authorId}/mark-unpaid`, {
+      method: 'POST',
+      body: JSON.stringify({ periodKey, note })
+    }),
 
   markFeePaid: (authorId, period, note) =>
     apiRequest(`/admin/fees/${authorId}/mark-paid`, {
