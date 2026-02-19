@@ -62,7 +62,7 @@ function displayMyLibrary(orders) {
 }
 
 // Load author dashboard
-async function loadAuthorDashboard() {
+async async function loadAuthorDashboard() {
   if (!requireAuth()) return;
   if (!requireRole('author')) return;
 
@@ -90,57 +90,125 @@ async function displayAuthorDashboard(data) {
     console.error('Error loading payout settings:', error);
   }
 
+  const fmtDate = (d) => {
+    if (!d) return '';
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return '';
+    return dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   container.innerHTML = `
-    <div class="stats-grid">
-      <div class="stat-card">
-        <h3>Total Books</h3>
+    <div class="section-header">
+      <div>
+        <div class="page-title">Overview</div>
+        <div class="page-subtitle">Your books, sales, and platform fee status.</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="label">Total Books</div>
         <div class="value">${data.books}</div>
       </div>
-      <div class="stat-card">
-        <h3>Total Sales</h3>
+      <div class="kpi">
+        <div class="label">Total Sales</div>
         <div class="value">${data.totalSales}</div>
       </div>
-      <div class="stat-card">
-        <h3>Total Earnings</h3>
+      <div class="kpi">
+        <div class="label">Total Earnings</div>
         <div class="value">$${data.totalEarnings}</div>
       </div>
-      <div class="stat-card">
-        <h3>Unpaid Earnings</h3>
+      <div class="kpi">
+        <div class="label">Unpaid Earnings</div>
         <div class="value">$${data.unpaidEarnings}</div>
       </div>
     </div>
 
-    <div style="margin-top: 2rem; background: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <h2 style="margin-bottom: 1rem;">Payout Settings</h2>
-      <p style="color: #666; margin-bottom: 1rem;">Add your PayPal email address to publish your books and receive payouts. If this field is empty, your books will not appear in the store. Payouts are processed manually once per month.</p>
-      <div id="payout-settings-alert"></div>
-      <div class="form-group" style="max-width: 500px;">
-        <label for="payout-paypal-email">PayPal Payout Email</label>
-        <input type="email" id="payout-paypal-email" name="payoutPaypalEmail" value="${payoutEmail}" placeholder="your-email@example.com">
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Platform Fee (10%)</h2>
       </div>
-      <button class="btn btn-primary" onclick="savePayoutSettings()">Save</button>
+      <p class="muted">
+        First 30 days are free. After that, the fee is calculated per calendar month.
+        You pay the <strong>previous month</strong> by the <strong>10th of the next month</strong>.
+      </p>
+
+      <div class="btn-row" style="margin-top:0.75rem;">
+        <div>
+          <div class="muted" style="font-size:0.9rem;">Payment email</div>
+          <div style="font-weight:900; color:#0052cc;">${data.adminPaymentEmail || 'blueleafbooks@hotmail.com'}</div>
+        </div>
+
+        <div>
+          <div class="muted" style="font-size:0.9rem;">Trial status</div>
+          <div style="font-weight:800;">
+            ${data.isInFirst30Days
+              ? `Free period: ${data.daysUntilFee} day(s) left (ends ${fmtDate(data.trialEndsAt) || '-'})`
+              : `Trial ended on ${fmtDate(data.trialEndsAt) || '-'}`
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="fee-grid">
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Amount due (last month)</div>
+          <div class="fee-amount">${data.isInFirst30Days ? '$0.00' : `$${Number(data.lastMonth?.feeDue || 0).toFixed(2)}`}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">
+            Period: ${data.lastMonth?.period || '-'} · Due by: ${fmtDate(data.lastMonth?.dueDate) || '-'}
+            ${data.lastMonth?.overdue ? '<span class="badge badge-danger" style="margin-left:0.4rem;">OVERDUE</span>' : ''}
+          </div>
+          <div style="margin-top:0.35rem;">
+            Status:
+            ${data.lastMonth?.status?.isPaid
+              ? '<span class="badge badge-success">PAID</span>'
+              : '<span class="badge badge-warning">UNPAID</span>'}
+          </div>
+        </div>
+
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Current month (accrued)</div>
+          <div class="fee-amount">${data.isInFirst30Days ? '$0.00' : `$${Number(data.currentMonth?.feeAccrued || 0).toFixed(2)}`}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">
+            Period: ${data.currentMonth?.period || '-'} · Due by: ${fmtDate(data.currentMonth?.dueDate) || '-'}
+          </div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.35rem;">
+            Only sales after your trial ends are counted.
+          </div>
+        </div>
+      </div>
     </div>
 
-    <h2 style="margin-top: 2rem;">My Books</h2>
-    <a href="author-upload.html" class="btn btn-primary" style="margin-bottom: 1rem;">Upload New Book</a>
-    <div id="author-books-list"></div>
+    <div class="section-card">
+      <div class="section-header">
+        <h2>My Books</h2>
+        <a href="author-upload.html" class="btn btn-primary">Upload new book</a>
+      </div>
+      <div id="author-books-list"></div>
+    </div>
 
-    <div style="margin-top: 2rem; background: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <h2 style="margin-bottom: 0.75rem;">Monthly Reports</h2>
-      <p style="color: #666; margin-bottom: 1rem;">
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Monthly Reports</h2>
+      </div>
+      <p class="muted">
         Download a PDF report of your monthly earnings, including each sale, platform fee (10%), and your net income.
         This report is for your records and tax reporting.
       </p>
       <div id="author-reports-alert"></div>
-      <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end;">
-        <div class="form-group" style="max-width: 120px;">
+      <div class="reports-row">
+        <div class="form-group" style="max-width: 140px;">
           <label for="author-report-month">Month</label>
-          <select id="author-report-month">
-            ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
-              const now = new Date();
-              const selected = (m === (now.getMonth() + 1)) ? 'selected' : '';
-              return `<option value="${m}" ${selected}>${m}</option>`;
-            }).join('')}
+          <select id="author-report-month"></select>
+        </div>
+        <div class="form-group" style="max-width: 140px;">
+          <label for="author-report-year">Year</label>
+          <select id="author-report-year"></select>
+        </div>
+        <button id="author-download-report" class="btn btn-secondary" type="button">Download PDF</button>
+      </div>
+    </div>
+  `;            }).join('')}
           </select>
         </div>
         <div class="form-group" style="max-width: 140px;">
@@ -243,69 +311,63 @@ function displayAuthorBooks(books) {
   }
 
   container.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Cover</th>
-          <th>Title</th>
-          <th>Genre</th>
-          <th>Price</th>
-          <th>Status</th>
-          <th>Sales</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${books.map(book => {
-          const isDeleted = book.isDeleted;
-          const statusLabel = isDeleted
-            ? 'Deleted by admin'
-            : book.status.charAt(0).toUpperCase() + book.status.slice(1);
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cover</th>
+            <th>Title</th>
+            <th>Genre</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Sales</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${books.map(book => {
+            const isDeleted = book.isDeleted;
+            const status = (book.status || '').toLowerCase();
+            const statusLabel = isDeleted
+              ? 'Deleted by admin'
+              : status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Unknown';
 
-          const bgColor = isDeleted
-            ? '#e2e3e5'
-            : book.status === 'approved'
-              ? '#d4edda'
-              : book.status === 'pending'
-                ? '#fff3cd'
-                : '#f8d7da';
+            const badgeClass = isDeleted
+              ? 'badge-danger'
+              : status === 'approved'
+                ? 'badge-success'
+                : status === 'pending'
+                  ? 'badge-warning'
+                  : 'badge-danger';
 
-          const textColor = isDeleted
-            ? '#6c757d'
-            : book.status === 'approved'
-              ? '#155724'
-              : book.status === 'pending'
-                ? '#856404'
-                : '#721c24';
-
-          return `
-            <tr>
-              <td>
-                <img src="${fileUrl(book.coverImage)}" alt="${book.title}"
-                     style="width: 50px; height: 60px; object-fit: cover;"
-                     onerror="this.src='https://via.placeholder.com/50x60?text=No+Cover'">
-              </td>
-              <td>${isDeleted ? '[DELETED] ' + book.title : book.title}</td>
-              <td>${book.genre}</td>
-              <td>$${Number(book.price || 0).toFixed(2)}</td>
-              <td>
-                <span style="padding: 0.3rem 0.6rem; border-radius: 3px; font-size: 0.85rem;
-                  background-color: ${bgColor};
-                  color: ${textColor};">
-                  ${statusLabel}
-                </span>
-              </td>
-              <td>${book.salesCount}</td>
-              <td>
-                ${!isDeleted ? `
-                  <button class="btn btn-secondary btn-small" onclick="editBook('${book._id}')">Edit</button>
-                ` : '<span style="font-size:0.85rem; color:#6c757d;">This book has been deleted by admin</span>'}
-              </td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
+            return `
+              <tr>
+                <td>
+                  <img
+                    src="${fileUrl(book.coverImage)}"
+                    alt="${book.title}"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.onerror=null;this.src='https://via.placeholder.com/52x66?text=No+Cover';"
+                  >
+                </td>
+                <td>${isDeleted ? '[DELETED] ' + book.title : book.title}</td>
+                <td>${book.genre || '-'}</td>
+                <td>$${Number(book.price || 0).toFixed(2)}</td>
+                <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+                <td>${book.salesCount || 0}</td>
+                <td>
+                  ${!isDeleted
+                    ? `<button class="btn btn-secondary btn-small" onclick="editBook('${book._id}')">Edit</button>`
+                    : `<span class="muted" style="font-size:0.85rem;">This book was deleted by admin</span>`
+                  }
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
