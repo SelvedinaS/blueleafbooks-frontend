@@ -5,6 +5,17 @@ const API_BASE_URL = 'https://blueleafbooks-backend-geum.onrender.com/api';
 // Example: https://blueleafbooks-backend.onrender.com
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
+// Build absolute URL for a file stored as relative path in backend (e.g. uploads/covers/xyz.jpg)
+function fileUrl(relPath) {
+  if (!relPath) return '';
+  // If already absolute
+  if (/^https?:\/\//i.test(relPath)) return relPath;
+  // Ensure single slash
+  const clean = relPath.replace(/^\/+/, '');
+  return `${FILE_BASE_URL}/${clean}`;
+}
+
+
 // Helper function to get auth token
 function getAuthToken() {
   return localStorage.getItem('token');

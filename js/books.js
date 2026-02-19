@@ -149,3 +149,39 @@ async function loadGenres() {
 document.addEventListener('DOMContentLoaded', () => {
   updateCartCount();
 });
+
+
+// Load curated featured books into any container that exists
+async function loadCuratedBooks() {
+  const container = document.getElementById('curated-books');
+  if (!container) return;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/books/featured/curated`);
+    const books = await res.json();
+    if (!Array.isArray(books) || books.length === 0) {
+      container.innerHTML = '<p class="muted">No featured books yet.</p>';
+      return;
+    }
+
+    container.innerHTML = books.map(book => {
+      const cover = fileUrl(book.coverImage);
+      const title = book.title || 'Untitled';
+      const authorName = book.author?.name || 'Unknown Author';
+      const price = Number(book.price || 0).toFixed(2);
+      return `
+        <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
+          <img src="${cover}" alt="${title}" loading="lazy" onerror="this.src='https://via.placeholder.com/250x300?text=No+Cover'">
+          <div class="book-card-content">
+            <div class="book-card-title">${title}</div>
+            <div class="book-card-author">${authorName}</div>
+            <div class="book-card-price">$${price}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<p class="muted">Failed to load featured books.</p>';
+  }
+}

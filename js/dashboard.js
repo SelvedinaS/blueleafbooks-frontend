@@ -518,3 +518,40 @@ async function unblockAuthor(authorId) {
   }
 }
 
+
+
+// Admin: update curated featured flag/order for a book
+async function updateFeatured(bookId) {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      alert('Please login again.');
+      return;
+    }
+
+    const checkbox = document.getElementById(`feat-${bookId}`);
+    const orderInput = document.getElementById(`featOrder-${bookId}`);
+
+    const isFeatured = !!checkbox?.checked;
+    const featuredOrder = Math.max(0, parseInt(orderInput?.value || '0', 10) || 0);
+
+    const res = await fetch(`${API_BASE_URL}/admin/books/${bookId}/featured`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ isFeatured, featuredOrder })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.message || 'Failed to update featured settings');
+      // revert UI if needed
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error updating featured settings');
+  }
+}
