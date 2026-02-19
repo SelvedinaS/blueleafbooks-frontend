@@ -123,6 +123,8 @@ const booksAPI = {
 
   getNew: () => apiRequest('/books/featured/new'),
 
+  getCurated: (limit) => apiRequest(`/books/featured/curated${limit ? '?limit=' + encodeURIComponent(limit) : ''}`),
+
   // IMPORTANT: formData endpoints (do NOT set Content-Type manually)
   create: async (formData) => {
     const token = getAuthToken();
@@ -213,6 +215,12 @@ const adminAPI = {
   deleteBook: (id) =>
     apiRequest(`/admin/books/${id}`, {
       method: 'DELETE'
+    }),
+
+  setBookFeatured: (id, isFeatured, featuredOrder) =>
+    apiRequest(`/admin/books/${id}/featured`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isFeatured, featuredOrder })
     }),
 
   getAllAuthors: () => apiRequest('/admin/authors'),

@@ -111,6 +111,8 @@
               <th>Price</th>
               <th>Status</th>
               <th>Sales</th>
+              <th>Featured</th>
+              <th>Order</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -137,6 +139,15 @@
                   </span>
                 </td>
                 <td>${book.salesCount || 0}</td>
+                <td>
+                  <label style="display:flex; align-items:center; gap:0.4rem;">
+                    <input type="checkbox" id="feat-${book._id}" ${book.isFeatured ? 'checked' : ''} onchange="updateFeatured('${book._id}')" />
+                    <span style="font-size:0.9rem; color:#555;">Featured</span>
+                  </label>
+                </td>
+                <td>
+                  <input type="number" min="0" step="1" id="featOrder-${book._id}" value="${Number(book.featuredOrder || 0)}" style="width:80px; padding:0.35rem;" onchange="updateFeatured('${book._id}')" />
+                </td>
                 <td>
                   ${!book.isDeleted && book.status === 'pending' ? `
                     <button class="btn btn-success btn-small" onclick="approveBook('${book._id}')">Approve</button>

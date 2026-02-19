@@ -20,6 +20,11 @@
   </header>
 
   <div class="container">
+    <section class="section">
+      <h2 class="section-title">Featured Picks</h2>
+      <div id="curated-books-store" class="books-grid"></div>
+    </section>
+
     <h1 class="section-title">All Books</h1>
 
     <div class="filters">
@@ -48,6 +53,17 @@
     function showStoreError(message) {
       const el = document.getElementById('books-container');
       if (el) el.innerHTML = `<p class="alert alert-error">${message}</p>`;
+    }
+
+    async function loadCuratedStore() {
+      try {
+        const books = await booksAPI.getCurated(12);
+        displayBooks(books, 'curated-books-store');
+      } catch (error) {
+        console.error('Error loading curated:', error);
+        const el = document.getElementById('curated-books-store');
+        if (el) el.innerHTML = `<p style="color:#666;">Couldn’t load featured books right now.</p>`;
+      }
     }
 
     // Apply filters
@@ -92,6 +108,7 @@
           if (genreSelect) genreSelect.value = genreParam;
         }
 
+        loadCuratedStore();
         loadBooks(currentFilters);
 
         // Search on Enter

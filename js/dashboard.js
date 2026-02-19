@@ -112,7 +112,7 @@ async function displayAuthorDashboard(data) {
 
     <div style="margin-top: 2rem; background: var(--white); padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
       <h2 style="margin-bottom: 1rem;">Payout Settings</h2>
-      <p style="color: #666; margin-bottom: 1rem;">Configure your PayPal email address to receive payouts. Payouts are processed manually once per month.</p>
+      <p style="color: #666; margin-bottom: 1rem;">Add your PayPal email address to publish your books and receive payouts. If this field is empty, your books will not appear in the store. Payouts are processed manually once per month.</p>
       <div id="payout-settings-alert"></div>
       <div class="form-group" style="max-width: 500px;">
         <label for="payout-paypal-email">PayPal Payout Email</label>
