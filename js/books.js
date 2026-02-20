@@ -98,7 +98,8 @@ function displayBookDetails(book) {
         ` : !user ? `
           <p class="alert alert-info">Please <a href="login.html">login</a> to purchase this book.</p>
         ` : isCustomer ? `
-          <button class="btn btn-primary" onclick="addToCart('${book._id}')" style="margin-right: 0.5rem;">Add to Cart</button>
+          <button class="btn btn-primary" onclick="buyNow('${book._id}')" style="margin-right: 0.5rem;">Buy Now</button>
+          <button class="btn btn-secondary" onclick="addToCart('${book._id}')">Add to Cart</button>
         ` : ''}
       </div>
     </div>
@@ -118,6 +119,19 @@ function addToCart(bookId) {
   localStorage.setItem('cart', JSON.stringify(cart));
   alert('Book added to cart!');
   updateCartCount();
+}
+
+// Buy Now: add to cart and go to checkout
+function buyNow(bookId) {
+  let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+  if (!cart.includes(bookId)) {
+    cart.push(bookId);
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }
+
+  updateCartCount();
+  window.location.href = 'checkout.html';
 }
 
 // Update cart count in navigation

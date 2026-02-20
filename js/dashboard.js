@@ -98,13 +98,66 @@ function displayMyLibrary(orders) {
     }
   });
 
-  if (purchasedBooks.length === 0) {
+  const allOrders = (orders || []).filter(o => !!o);
+  const orderHistoryHtml = allOrders.length > 0 ? `
+    <div class="section-card" style="margin-top: 2rem;">
+      <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Order History</h2>
+      <p class="muted" style="margin-bottom: 1rem;">All your orders and their payment status.</p>
+      ${isMobileView() ? `
+        <div class="mobile-cards">
+          ${allOrders.map(o => {
+            const status = (o.paymentStatus || 'pending').toLowerCase();
+            const statusClass = status === 'completed' ? 'badge-success' : status === 'failed' ? 'badge-danger' : 'badge-warning';
+            const itemsCount = (o.items || []).length;
+            return `
+              <div class="mobile-card">
+                <div class="mobile-card-header">
+                  <div>
+                    <div class="mobile-card-title">Order ${(o._id || '').substring(0, 8)}...</div>
+                    <div class="mobile-card-subtitle">$${Number(o.totalAmount || 0).toFixed(2)} · ${itemsCount} book(s) · <span class="badge ${statusClass}">${status}</span></div>
+                  </div>
+                  <div class="mobile-card-actions">
+                    <button class="mobile-toggle" type="button">Details</button>
+                  </div>
+                </div>
+                <div class="mobile-card-details">
+                  <div class="mobile-kv"><span class="k">Date</span><span class="v">${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '-'}</span></div>
+                  <div class="mobile-kv"><span class="k">Status</span><span class="v"><span class="badge ${statusClass}">${status}</span></span></div>
+                  <div class="mobile-kv"><span class="k">Total</span><span class="v">$${Number(o.totalAmount || 0).toFixed(2)}</span></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Order ID</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            ${allOrders.map(o => {
+              const status = (o.paymentStatus || 'pending').toLowerCase();
+              const statusClass = status === 'completed' ? 'badge-success' : status === 'failed' ? 'badge-danger' : 'badge-warning';
+              return `<tr>
+                <td>${(o._id || '').substring(0, 8)}...</td>
+                <td>${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '-'}</td>
+                <td>${(o.items || []).length} book(s)</td>
+                <td>$${Number(o.totalAmount || 0).toFixed(2)}</td>
+                <td><span class="badge ${statusClass}">${status}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+      `}
+    </div>
+  ` : '';
+
+  if (purchasedBooks.length === 0 && allOrders.length === 0) {
     container.innerHTML = `<p class="alert alert-info">You haven't purchased any books yet. <a href="store.html">Browse books</a></p>`;
     return;
   }
 
   container.innerHTML = `
     <h2>My Library</h2>
+    ${purchasedBooks.length === 0 ? '<p class="alert alert-info">No books in your library yet. <a href="store.html">Browse books</a></p>' : `
     <div class="books-grid">
       ${purchasedBooks.map(book => `
         <div class="book-card">
@@ -119,7 +172,11 @@ function displayMyLibrary(orders) {
         </div>
       `).join('')}
     </div>
+    `}
+    ${orderHistoryHtml}
   `;
+
+  if (isMobileView()) wireMobileToggles();
 }
 
 /* =========================

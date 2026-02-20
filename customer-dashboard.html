@@ -11,10 +11,12 @@
   <header>
     <nav>
       <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
         <li><a href="store.html">Store</a></li>
         <li><a href="cart.html">Cart</a></li>
+        <li><a href="support.html">Support</a></li>
       </ul>
     </nav>
   </header>
@@ -41,11 +43,21 @@
   <script src="./js/auth.js"></script>
   <script src="./js/dashboard.js"></script>
   <script>
-    // ✅ Security: protect page
     requireAuth();
     requireRole('customer');
 
     document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (btn && nav) {
+        btn.addEventListener('click', () => { nav.classList.toggle('open'); btn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false'); });
+      }
+      const dashBtn = document.querySelector('.dashboard-menu-btn');
+      const sidebar = document.querySelector('.dashboard-sidebar');
+      if (dashBtn && sidebar) {
+        sidebar.id = 'dashboard-sidebar';
+        dashBtn.addEventListener('click', () => { const open = sidebar.classList.toggle('is-open'); dashBtn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+      }
       loadCustomerDashboard();
     });
   </script>

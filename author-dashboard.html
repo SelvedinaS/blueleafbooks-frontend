@@ -11,9 +11,11 @@
   <header>
     <nav>
       <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
         <li><a href="store.html">Store</a></li>
+        <li><a href="support.html">Support</a></li>
       </ul>
     </nav>
   </header>
@@ -47,15 +49,16 @@
     requireRole('author');
 
     document.addEventListener('DOMContentLoaded', () => {
-      // Mobile: collapse/expand sidebar under the button
+      const menuBtn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (menuBtn && nav) {
+        menuBtn.addEventListener('click', () => { nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false'); });
+      }
       const btn = document.querySelector('.dashboard-menu-btn');
       const sidebar = document.querySelector('.dashboard-sidebar');
       if (btn && sidebar) {
         sidebar.id = 'dashboard-sidebar';
-        btn.addEventListener('click', () => {
-          const open = sidebar.classList.toggle('is-open');
-          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        });
+        btn.addEventListener('click', () => { const open = sidebar.classList.toggle('is-open'); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
       }
       loadAuthorDashboard();
     });

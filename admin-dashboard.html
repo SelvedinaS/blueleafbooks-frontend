@@ -11,8 +11,10 @@
   <header>
     <nav>
       <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
+        <li><a href="support.html">Support</a></li>
       </ul>
     </nav>
   </header>
@@ -54,25 +56,42 @@
 
     // Mobile: collapse/expand sidebar under the button
     document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (menuBtn && nav) {
+        menuBtn.addEventListener('click', () => { nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false'); });
+      }
       const btn = document.querySelector('.dashboard-menu-btn');
       const sidebar = document.querySelector('.dashboard-sidebar');
       if (btn && sidebar) {
         sidebar.id = 'dashboard-sidebar';
-        btn.addEventListener('click', () => {
-          const open = sidebar.classList.toggle('is-open');
-          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        });
+        btn.addEventListener('click', () => { const open = sidebar.classList.toggle('is-open'); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
       }
     });
 
     // Helper: cover image URL (online-safe)
     function getCoverUrl(book) {
-      // If you already store full URLs (Cloudinary), use them directly
       if (book.coverImage && (book.coverImage.startsWith('http://') || book.coverImage.startsWith('https://'))) {
         return book.coverImage;
       }
-      // Otherwise fallback to backend host
       return `${API_BASE_URL.replace('/api','')}/${book.coverImage || ''}`;
+    }
+
+    function isMobileView() {
+      return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function wireMobileToggles() {
+      document.querySelectorAll('.mobile-toggle').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', (e) => {
+          const card = e.currentTarget.closest('.mobile-card');
+          if (!card) return;
+          card.classList.toggle('is-open');
+          e.currentTarget.textContent = card.classList.contains('is-open') ? 'Hide' : 'Details';
+        });
+      });
     }
 
     async function showSection(section, e) {
@@ -106,86 +125,92 @@
       }
     }
 
-    async function loadAllBooks() {
-      const books = await adminAPI.getAllBooks('all');
+    async function loadAllBooks(statusFilter) {
+      const status = statusFilter || document.getElementById('book-status-filter')?.value || 'all';
+      const books = await adminAPI.getAllBooks(status === 'all' ? null : status);
       const container = document.getElementById('dashboard-content');
+      const mobile = isMobileView();
 
-      container.innerHTML = `
-        <h2>All Books</h2>
-        <select id="book-status-filter" onchange="filterBooks()" style="margin-bottom: 1rem; padding: 0.5rem;">
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-        <table>
-          <thead>
-            <tr>
-              <th>Cover</th>
-              <th>Title</th>
-              <th>Author</th>
-              <th>Genre</th>
-              <th>Price</th>
-              <th>Status</th>
-              <th>Sales</th>
-              <th>Featured</th>
-              <th>Order</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      const statusBadge = (book) => {
+        const s = book.isDeleted ? 'Deleted' : (book.status ? (book.status.charAt(0).toUpperCase() + book.status.slice(1)) : 'Unknown');
+        const bg = book.isDeleted ? '#e2e3e5' : (book.status === 'approved' ? '#d4edda' : book.status === 'pending' ? '#fff3cd' : '#f8d7da');
+        const c = book.isDeleted ? '#6c757d' : (book.status === 'approved' ? '#155724' : book.status === 'pending' ? '#856404' : '#721c24');
+        return `<span class="badge" style="background:${bg};color:${c};">${s}</span>`;
+      };
+
+      if (mobile) {
+        container.innerHTML = `
+          <h2>All Books</h2>
+          <select id="book-status-filter" onchange="filterBooks()" style="margin-bottom: 1rem; padding: 0.6rem; min-height:44px;">
+            <option value="all" ${status==='all'?'selected':''}>All Status</option>
+            <option value="pending" ${status==='pending'?'selected':''}>Pending</option>
+            <option value="approved" ${status==='approved'?'selected':''}>Approved</option>
+            <option value="rejected" ${status==='rejected'?'selected':''}>Rejected</option>
+          </select>
+          <div class="mobile-cards">
             ${books.map(book => `
-              <tr>
-                <td>
-                  <img
-                    src="${getCoverUrl(book)}"
-                    alt="${book.title}"
-                    style="width: 50px; height: 60px; object-fit: cover;"
-                    onerror="this.src='https://via.placeholder.com/50x60?text=No+Cover'"
-                  >
-                </td>
-                <td>${book.title}</td>
-                <td>${book.author?.name || 'Unknown'}</td>
-                <td>${book.genre}</td>
-                <td>$${Number(book.price || 0).toFixed(2)}</td>
-                <td>
-                  <span style="padding: 0.3rem 0.6rem; border-radius: 3px; font-size: 0.85rem;
-                    background-color: ${book.isDeleted ? '#e2e3e5' : (book.status === 'approved' ? '#d4edda' : book.status === 'pending' ? '#fff3cd' : '#f8d7da')};
-                    color: ${book.isDeleted ? '#6c757d' : (book.status === 'approved' ? '#155724' : book.status === 'pending' ? '#856404' : '#721c24')};">
-                    ${book.isDeleted ? 'Deleted' : (book.status ? (book.status.charAt(0).toUpperCase() + book.status.slice(1)) : 'Unknown')}
-                  </span>
-                </td>
-                <td>${book.salesCount || 0}</td>
-                <td>
-                  <label style="display:flex; align-items:center; gap:0.4rem;">
-                    <input type="checkbox" id="feat-${book._id}" ${book.isFeatured ? 'checked' : ''} onchange="updateFeatured('${book._id}')" />
-                    <span style="font-size:0.9rem; color:#555;">Featured</span>
-                  </label>
-                </td>
-                <td>
-                  <input type="number" min="0" step="1" id="featOrder-${book._id}" value="${Number(book.featuredOrder || 0)}" style="width:80px; padding:0.35rem;" onchange="updateFeatured('${book._id}')" />
-                </td>
-                <td>
-                  ${!book.isDeleted && book.status === 'pending' ? `
-                    <button class="btn btn-success btn-small" onclick="approveBook('${book._id}')">Approve</button>
-                    <button class="btn btn-danger btn-small" onclick="rejectBook('${book._id}')">Reject</button>
-                  ` : ''}
-                  ${!book.isDeleted ? `
-                    <button class="btn btn-danger btn-small" onclick="adminDeleteBook('${book._id}')" style="margin-left: 0.25rem;">Delete</button>
-                  ` : ''}
-                </td>
-              </tr>
+              <div class="mobile-card">
+                <div class="mobile-card-header">
+                  <div>
+                    <div class="mobile-card-title">${book.isDeleted ? '[DELETED] ' : ''}${book.title}</div>
+                    <div class="mobile-card-subtitle">${book.author?.name || 'Unknown'} · $${Number(book.price || 0).toFixed(2)} · ${statusBadge(book)}</div>
+                  </div>
+                  <div class="mobile-card-actions">
+                    <button class="mobile-toggle" type="button">Details</button>
+                    ${!book.isDeleted && book.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="approveBook('${book._id}')">Approve</button><button class="btn btn-danger btn-small" onclick="rejectBook('${book._id}')">Reject</button>` : ''}
+                    ${!book.isDeleted ? `<button class="btn btn-danger btn-small" onclick="adminDeleteBook('${book._id}')">Delete</button>` : ''}
+                  </div>
+                </div>
+                <div class="mobile-card-details">
+                  <div class="mobile-kv"><span class="k">Genre</span><span class="v">${book.genre || '-'}</span></div>
+                  <div class="mobile-kv"><span class="k">Sales</span><span class="v">${book.salesCount || 0}</span></div>
+                  <label style="display:flex;align-items:center;gap:0.5rem;margin-top:8px;"><input type="checkbox" id="feat-${book._id}" ${book.isFeatured ? 'checked' : ''} onchange="updateFeatured('${book._id}')" /><span>Featured</span></label>
+                  <div style="margin-top:8px;"><label>Order: <input type="number" min="0" id="featOrder-${book._id}" value="${Number(book.featuredOrder || 0)}" style="width:70px;padding:8px;" onchange="updateFeatured('${book._id}')" /></label></div>
+                  <img src="${getCoverUrl(book)}" alt="${book.title}" style="width:80px;height:100px;object-fit:cover;border-radius:8px;margin-top:10px;" onerror="this.src='https://via.placeholder.com/80x100?text=No+Cover'">
+                </div>
+              </div>
             `).join('')}
-          </tbody>
-        </table>
-      `;
+          </div>
+        `;
+        wireMobileToggles();
+      } else {
+        container.innerHTML = `
+          <h2>All Books</h2>
+          <select id="book-status-filter" onchange="filterBooks()" style="margin-bottom: 1rem; padding: 0.5rem;">
+            <option value="all" ${status==='all'?'selected':''}>All Status</option>
+            <option value="pending" ${status==='pending'?'selected':''}>Pending</option>
+            <option value="approved" ${status==='approved'?'selected':''}>Approved</option>
+            <option value="rejected" ${status==='rejected'?'selected':''}>Rejected</option>
+          </select>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Cover</th><th>Title</th><th>Author</th><th>Genre</th><th>Price</th><th>Status</th><th>Sales</th><th>Featured</th><th>Order</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${books.map(book => `
+                <tr>
+                  <td><img src="${getCoverUrl(book)}" alt="${book.title}" style="width:50px;height:60px;object-fit:cover;" onerror="this.src='https://via.placeholder.com/50x60?text=No+Cover'"></td>
+                  <td>${book.title}</td>
+                  <td>${book.author?.name || 'Unknown'}</td>
+                  <td>${book.genre}</td>
+                  <td>$${Number(book.price || 0).toFixed(2)}</td>
+                  <td>${statusBadge(book)}</td>
+                  <td>${book.salesCount || 0}</td>
+                  <td><label style="display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="feat-${book._id}" ${book.isFeatured ? 'checked' : ''} onchange="updateFeatured('${book._id}')" /><span style="font-size:0.9rem;color:#555;">Featured</span></label></td>
+                  <td><input type="number" min="0" step="1" id="featOrder-${book._id}" value="${Number(book.featuredOrder || 0)}" style="width:80px;padding:0.35rem;" onchange="updateFeatured('${book._id}')" /></td>
+                  <td>
+                    ${!book.isDeleted && book.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="approveBook('${book._id}')">Approve</button><button class="btn btn-danger btn-small" onclick="rejectBook('${book._id}')">Reject</button>` : ''}
+                    ${!book.isDeleted ? `<button class="btn btn-danger btn-small" onclick="adminDeleteBook('${book._id}')" style="margin-left:0.25rem;">Delete</button>` : ''}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table></div>
+        `;
+      }
     }
 
     async function filterBooks() {
       const status = document.getElementById('book-status-filter').value;
-      await adminAPI.getAllBooks(status === 'all' ? null : status);
-      // keep it simple: reload (your original behavior)
-      loadAllBooks();
+      await loadAllBooks(status);
     }
 
     async function adminDeleteBook(bookId) {
@@ -410,51 +435,77 @@
           return dt.toLocaleDateString();
         };
 
-        tbody.innerHTML = rows.map(r => {
-          const name = r.author?.name || '';
-          const email = r.author?.email || '';
-          const authorId = r.author?._id || '';
-          const isBlocked = !!r.author?.isBlocked;
-          const periodKey = r.cycle?.key || '';
-          const isPaid = !!r.status?.isPaid;
-          const overdue = !!r.overdue;
-
-          const trialBadge = r.isInTrial
-            ? `<span class="badge badge-info">TRIAL</span>`
-            : `<span class="badge badge-success">ACTIVE</span>`;
-
-          const amountDue = r.isInTrial ? 0 : Number(r.cycle?.feeDue || 0);
-
-          return `
-            <tr>
-              <td>
-                <strong>${name}</strong><br/>
-                <span style="color:#666; font-size:0.9rem;">${email}</span><br/>
-                ${trialBadge}
-              </td>
+        const mobile = isMobileView();
+        if (mobile) {
+          let cardsDiv = document.getElementById('admin-fee-cards');
+          const tableWrap = tbody.closest('div');
+          if (!cardsDiv && tableWrap) {
+            cardsDiv = document.createElement('div');
+            cardsDiv.id = 'admin-fee-cards';
+            cardsDiv.className = 'mobile-cards';
+            tableWrap.style.display = 'none';
+            tableWrap.parentNode.insertBefore(cardsDiv, tableWrap);
+          }
+          if (cardsDiv) {
+            cardsDiv.innerHTML = rows.map(r => {
+              const name = r.author?.name || '';
+              const email = r.author?.email || '';
+              const authorId = r.author?._id || '';
+              const isBlocked = !!r.author?.isBlocked;
+              const periodKey = r.cycle?.key || '';
+              const isPaid = !!r.status?.isPaid;
+              const overdue = !!r.overdue;
+              const amountDue = r.isInTrial ? 0 : Number(r.cycle?.feeDue || 0);
+              return `<div class="mobile-card">
+                <div class="mobile-card-header">
+                  <div><div class="mobile-card-title">${name}</div><div class="mobile-card-subtitle">$${amountDue.toFixed(2)} · ${isPaid ? 'PAID' : 'UNPAID'} ${overdue ? '· OVERDUE' : ''}</div></div>
+                  <div class="mobile-card-actions">
+                    <button class="mobile-toggle" type="button">Details</button>
+                    ${isPaid ? `<button class="btn btn-secondary btn-small" onclick="markAuthorUnpaid('${authorId}', '${periodKey}')">Mark Unpaid</button>` : `<button class="btn btn-primary btn-small" onclick="markAuthorPaid('${authorId}', '${periodKey}')">Mark Paid</button>`}
+                    ${isBlocked ? `<button class="btn btn-secondary btn-small" onclick="unblockAuthor('${authorId}')">Unblock</button>` : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${authorId}')">Block</button>`}
+                  </div>
+                </div>
+                <div class="mobile-card-details">
+                  <div class="mobile-kv"><span class="k">Email</span><span class="v">${email}</span></div>
+                  <div class="mobile-kv"><span class="k">Gross</span><span class="v">$${Number(r.cycle?.grossSales || 0).toFixed(2)}</span></div>
+                  <div class="mobile-kv"><span class="k">Due by</span><span class="v">${fmtDate(r.dueDate)}</span></div>
+                </div>
+              </div>`;
+            }).join('');
+            wireMobileToggles();
+          }
+          tbody.innerHTML = '';
+        } else {
+          const feeCards = document.getElementById('admin-fee-cards');
+          if (feeCards) feeCards.remove();
+          const tw = tbody.closest('div');
+          if (tw) tw.style.display = '';
+          tbody.innerHTML = rows.map(r => {
+            const name = r.author?.name || '';
+            const email = r.author?.email || '';
+            const authorId = r.author?._id || '';
+            const isBlocked = !!r.author?.isBlocked;
+            const periodKey = r.cycle?.key || '';
+            const isPaid = !!r.status?.isPaid;
+            const overdue = !!r.overdue;
+            const trialBadge = r.isInTrial ? `<span class="badge badge-info">TRIAL</span>` : `<span class="badge badge-success">ACTIVE</span>`;
+            const amountDue = r.isInTrial ? 0 : Number(r.cycle?.feeDue || 0);
+            return `<tr>
+              <td><strong>${name}</strong><br/><span style="color:#666;font-size:0.9rem;">${email}</span><br/>${trialBadge}</td>
               <td>${r.billingDay || '—'}</td>
               <td>${r.isInTrial ? `${r.trialDaysRemaining || 0} day(s)` : '—'}</td>
               <td style="white-space:nowrap;">${fmtDate(r.cycle?.start)} – ${fmtDate(r.cycle?.end)}</td>
               <td style="white-space:nowrap;">${fmtDate(r.dueDate)}</td>
               <td>$${Number(r.cycle?.grossSales || 0).toFixed(2)}</td>
               <td><strong>$${amountDue.toFixed(2)}</strong></td>
-              <td>
-                ${isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}
-              </td>
+              <td>${isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}</td>
               <td>${isPaid ? fmtDate(r.status?.paidAt) : '<span style="color:#999;">—</span>'}</td>
               <td>${overdue ? '<span class="badge badge-danger">OVERDUE</span>' : '<span style="color:#999;">—</span>'}</td>
               <td>${isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
-              <td style="min-width:320px;">
-                ${isPaid
-                  ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${authorId}', '${periodKey}')">Mark Unpaid</button>`
-                  : `<button class="btn btn-primary" onclick="markAuthorPaid('${authorId}', '${periodKey}')">Mark Paid</button>`}
-                ${isBlocked
-                  ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${authorId}')">Unblock</button>`
-                  : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${authorId}')">Block</button>`}
-              </td>
-            </tr>
-          `;
-        }).join('');
+              <td style="min-width:320px;">${isPaid ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${authorId}', '${periodKey}')">Mark Unpaid</button>` : `<button class="btn btn-primary" onclick="markAuthorPaid('${authorId}', '${periodKey}')">Mark Paid</button>`} ${isBlocked ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${authorId}')">Unblock</button>` : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${authorId}')">Block</button>`}</td>
+            </tr>`;
+          }).join('');
+        }
 
         const pctEl = document.getElementById('admin-fee-pct');
         if (pctEl) pctEl.textContent = `${feeData.feePercentage}%`;
@@ -536,15 +587,12 @@
     async function loadAllOrders() {
       const orders = await adminAPI.getAllOrders();
       const container = document.getElementById('dashboard-content');
+      const mobile = isMobileView();
 
-      container.innerHTML = `
-        <h2>All Orders</h2>
-
+      const reportHtml = `
         <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <h3 style="margin-bottom: 0.5rem;">Monthly Platform Report</h3>
-          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
-            Download a monthly PDF report showing all authors and all sales for the selected period, including platform fees and author earnings.
-          </p>
+          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">Download a monthly PDF report showing all authors and all sales for the selected period.</p>
           <div id="admin-platform-reports-alert"></div>
           <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
             <div class="form-group" style="max-width: 120px;">
@@ -559,37 +607,52 @@
             </div>
             <div class="form-group" style="max-width: 140px;">
               <label for="admin-platform-year">Year</label>
-              <input type="number" id="admin-platform-year" min="2000" max="2100" value="${new Date().getFullYear()}" />
+              <input type="number" id="admin-platform-year" min="2000" max="2100" value="${new Date().getFullYear()}" style="padding:8px;" />
             </div>
             <button class="btn btn-primary" onclick="downloadAdminPlatformMonthlyReport()">Download Platform PDF</button>
           </div>
         </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Order ID</th>
-              <th>Customer</th>
-              <th>Items</th>
-              <th>Total</th>
-              <th>Platform Earnings</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${orders.map(order => `
-              <tr>
-                <td>${order._id?.substring(0, 8) || ''}...</td>
-                <td>${order.customer?.name || 'Unknown'}</td>
-                <td>${order.items?.length || 0} book(s)</td>
-                <td>$${Number(order.totalAmount || 0).toFixed(2)}</td>
-                <td>$${Number(order.platformEarnings || 0).toFixed(2)}</td>
-                <td>${order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
       `;
+
+      if (mobile) {
+        container.innerHTML = `<h2>All Orders</h2>${reportHtml}<div class="mobile-cards">
+          ${orders.map(order => `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div>
+                  <div class="mobile-card-title">${order.customer?.name || 'Unknown'}</div>
+                  <div class="mobile-card-subtitle">$${Number(order.totalAmount || 0).toFixed(2)} · ${order.items?.length || 0} book(s)</div>
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                </div>
+              </div>
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><span class="k">Order ID</span><span class="v">${order._id?.substring(0, 8) || ''}...</span></div>
+                <div class="mobile-kv"><span class="k">Customer</span><span class="v">${order.customer?.name || 'Unknown'}</span></div>
+                <div class="mobile-kv"><span class="k">Items</span><span class="v">${order.items?.length || 0} book(s)</span></div>
+                <div class="mobile-kv"><span class="k">Total</span><span class="v">$${Number(order.totalAmount || 0).toFixed(2)}</span></div>
+                <div class="mobile-kv"><span class="k">Platform</span><span class="v">$${Number(order.platformEarnings || 0).toFixed(2)}</span></div>
+                <div class="mobile-kv"><span class="k">Date</span><span class="v">${order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</span></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+        wireMobileToggles();
+      } else {
+        container.innerHTML = `<h2>All Orders</h2>${reportHtml}<div class="table-wrap"><table>
+          <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Platform Earnings</th><th>Date</th></tr></thead>
+          <tbody>${orders.map(order => `
+            <tr>
+              <td>${order._id?.substring(0, 8) || ''}...</td>
+              <td>${order.customer?.name || 'Unknown'}</td>
+              <td>${order.items?.length || 0} book(s)</td>
+              <td>$${Number(order.totalAmount || 0).toFixed(2)}</td>
+              <td>$${Number(order.platformEarnings || 0).toFixed(2)}</td>
+              <td>${order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
+            </tr>
+          `).join('')}</tbody></table></div>`;
+      }
     }
 
     async function downloadAdminPlatformMonthlyReport() {
@@ -706,49 +769,49 @@
 
       const rows = feeReport?.rows || [];
       const dueDate = feeReport?.dueDate ? new Date(feeReport.dueDate).toLocaleDateString() : '-';
+      const mobile = typeof isMobileView === 'function' && isMobileView();
 
-      box.innerHTML = `
+      if (mobile && rows.length > 0) {
+        box.innerHTML = `<h3 style="margin-bottom:0.5rem;">Fee report for ${feeReport?.period || period} (Due by ${dueDate})</h3>
+        <div class="mobile-cards">${rows.map(r => `
+          <div class="mobile-card">
+            <div class="mobile-card-header">
+              <div><div class="mobile-card-title">${r.name || '—'}</div><div class="mobile-card-subtitle">$${Number(r.platformFeeDue || 0).toFixed(2)} · ${r.isPaid ? 'PAID' : 'UNPAID'} ${r.isOverdue ? '· OVERDUE' : ''}</div></div>
+              <div class="mobile-card-actions">
+                <button class="mobile-toggle" type="button">Details</button>
+                ${r.isPaid ? `<button class="btn btn-warning btn-small" onclick="markFeeUnpaid('${r.authorId}', '${feeReport?.period || period}')">Mark unpaid</button>` : `<button class="btn btn-success btn-small" onclick="markFeePaid('${r.authorId}', '${feeReport?.period || period}')">Mark paid</button>`}
+                ${r.isBlocked ? `<button class="btn btn-success btn-small" onclick="unblockAuthor('${r.authorId}')">Unblock</button>` : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}
+              </div>
+            </div>
+            <div class="mobile-card-details">
+              <div class="mobile-kv"><span class="k">Email</span><span class="v">${r.email || '—'}</span></div>
+              <div class="mobile-kv"><span class="k">PayPal</span><span class="v">${r.payoutPaypalEmail || 'Not set'}</span></div>
+              <div class="mobile-kv"><span class="k">Gross</span><span class="v">$${Number(r.grossSales || 0).toFixed(2)}</span></div>
+            </div>
+          </div>
+        `).join('')}</div>`;
+        if (typeof wireMobileToggles === 'function') wireMobileToggles();
+      } else {
+        box.innerHTML = `
         <h3 style="margin-bottom:0.5rem;">Fee report for ${feeReport?.period || period} (Due by ${dueDate})</h3>
         <div style="overflow:auto; background:var(--white); border:1px solid var(--border-color); border-radius:8px;">
           <table>
-            <thead>
-              <tr>
-                <th>Author</th>
-                <th>Email</th>
-                <th>PayPal</th>
-                <th>Gross Sales</th>
-                <th>Fee Due (10%)</th>
-                <th>Status</th>
-                <th>Overdue</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Author</th><th>Email</th><th>PayPal</th><th>Gross Sales</th><th>Fee Due (10%)</th><th>Status</th><th>Overdue</th><th>Actions</th></tr></thead>
             <tbody>
               ${rows.length === 0 ? '<tr><td colspan="8">No data</td></tr>' : rows.map(r => `
                 <tr>
-                  <td>${r.name || '—'}</td>
-                  <td>${r.email || '—'}</td>
-                  <td>${r.payoutPaypalEmail || '<span style="color:#999;">Not set</span>'}</td>
-                  <td>$${Number(r.grossSales || 0).toFixed(2)}</td>
-                  <td><strong>$${Number(r.platformFeeDue || 0).toFixed(2)}</strong></td>
+                  <td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.payoutPaypalEmail || '<span style="color:#999;">Not set</span>'}</td>
+                  <td>$${Number(r.grossSales || 0).toFixed(2)}</td><td><strong>$${Number(r.platformFeeDue || 0).toFixed(2)}</strong></td>
                   <td>${r.isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}</td>
-                  <td>${r.isOverdue ? '<span style="color:#c00; font-weight:700;">YES</span>' : 'No'}</td>
-                  <td style="display:flex; gap:0.4rem; flex-wrap:wrap;">
-                    ${r.isPaid
-                      ? `<button class="btn btn-warning btn-small" onclick="markFeeUnpaid('${r.authorId}', '${feeReport?.period || period}')">Mark unpaid</button>`
-                      : `<button class="btn btn-success btn-small" onclick="markFeePaid('${r.authorId}', '${feeReport?.period || period}')">Mark paid</button>`
-                    }
-                    ${r.isBlocked
-                      ? `<button class="btn btn-success btn-small" onclick="unblockAuthor('${r.authorId}')">Unblock</button>`
-                      : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`
-                    }
-                  </td>
+                  <td>${r.isOverdue ? '<span style="color:#c00;font-weight:700;">YES</span>' : 'No'}</td>
+                  <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">${r.isPaid ? `<button class="btn btn-warning btn-small" onclick="markFeeUnpaid('${r.authorId}', '${feeReport?.period || period}')">Mark unpaid</button>` : `<button class="btn btn-success btn-small" onclick="markFeePaid('${r.authorId}', '${feeReport?.period || period}')">Mark paid</button>`} ${r.isBlocked ? `<button class="btn btn-success btn-small" onclick="unblockAuthor('${r.authorId}')">Unblock</button>` : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         </div>
       `;
+      }
     }
 
     async function markFeePaid(authorId, period) {
@@ -773,37 +836,35 @@
 async function loadPayouts() {
       const payouts = await adminAPI.getPayouts();
       const container = document.getElementById('dashboard-content');
+      const mobile = isMobileView();
+      const infoHtml = '<p class="alert alert-info">Unpaid earnings for authors. Mark as paid after processing monthly payouts.</p>';
 
-      container.innerHTML = `
-        <h2>Author Payouts</h2>
-        <p class="alert alert-info">Unpaid earnings for authors. Mark as paid after processing monthly payouts.</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Author</th>
-              <th>Email</th>
-              <th>PayPal Payout Email</th>
-              <th>Unpaid Earnings</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${payouts.length === 0 ? '<tr><td colspan="5">No unpaid earnings</td></tr>' : payouts.map(payout => `
-              <tr>
-                <td>${payout.author?.name || '-'}</td>
-                <td>${payout.author?.email || '-'}</td>
-                <td>${payout.author?.payoutPaypalEmail || '<span style="color: #999;">Not set</span>'}</td>
-                <td>$${Number(payout.unpaidEarnings || 0).toFixed(2)}</td>
-                <td>
-                  <button class="btn btn-success btn-small" onclick="markPayoutPaid('${payout.author?.id}', ${payout.unpaidEarnings})">
-                    Mark as Paid
-                  </button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
+      if (mobile) {
+        container.innerHTML = `<h2>Author Payouts</h2>${infoHtml}<div class="mobile-cards">
+          ${payouts.length === 0 ? '<p class="muted">No unpaid earnings.</p>' : payouts.map(p => `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div><div class="mobile-card-title">${p.author?.name || '-'}</div><div class="mobile-card-subtitle">$${Number(p.unpaidEarnings || 0).toFixed(2)}</div></div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  <button class="btn btn-success btn-small" onclick="markPayoutPaid('${p.author?.id}', ${p.unpaidEarnings})">Mark as Paid</button>
+                </div>
+              </div>
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><span class="k">Email</span><span class="v">${p.author?.email || '-'}</span></div>
+                <div class="mobile-kv"><span class="k">PayPal</span><span class="v">${p.author?.payoutPaypalEmail || 'Not set'}</span></div>
+                <div class="mobile-kv"><span class="k">Unpaid</span><span class="v">$${Number(p.unpaidEarnings || 0).toFixed(2)}</span></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+        wireMobileToggles();
+      } else {
+        container.innerHTML = `<h2>Author Payouts</h2>${infoHtml}<div class="table-wrap"><table><thead><tr><th>Author</th><th>Email</th><th>PayPal Payout Email</th><th>Unpaid Earnings</th><th>Actions</th></tr></thead><tbody>
+          ${payouts.length === 0 ? '<tr><td colspan="5">No unpaid earnings</td></tr>' : payouts.map(p => `
+            <tr><td>${p.author?.name || '-'}</td><td>${p.author?.email || '-'}</td><td>${p.author?.payoutPaypalEmail || '<span style="color:#999;">Not set</span>'}</td><td>$${Number(p.unpaidEarnings || 0).toFixed(2)}</td><td><button class="btn btn-success btn-small" onclick="markPayoutPaid('${p.author?.id}', ${p.unpaidEarnings})">Mark as Paid</button></td></tr>
+          `).join('')}</tbody></table></div>`;
+      }
     }
 
     async function markPayoutPaid(authorId, amount) {
@@ -827,93 +888,58 @@ async function loadPayouts() {
           adminAPI.getAllCoupons(),
           adminAPI.getAllAuthors()
         ]);
-
         const container = document.getElementById('dashboard-content');
+        const mobile = isMobileView();
 
-        container.innerHTML = `
-          <h2>Discount Codes</h2>
-          <button class="btn btn-primary" onclick="showCreateCouponForm()" style="margin-bottom: 1rem;">Create New Coupon</button>
-
+        const formHtml = `
           <div id="create-coupon-form" style="display: none; background: var(--white); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
             <h3>Create New Coupon</h3>
             <div id="create-coupon-alert"></div>
-            <div class="form-group">
-              <label>Code *</label>
-              <input type="text" id="new-coupon-code" placeholder="e.g., SAVE20" required>
-            </div>
-            <div class="form-group">
-              <label>Discount Percentage * (1-100)</label>
-              <input type="number" id="new-coupon-percentage" min="1" max="100" required>
-            </div>
-            <div class="form-group">
-              <label>Scope *</label>
-              <select id="new-coupon-scope" onchange="toggleAuthorSelect()" required>
-                <option value="all">All Books</option>
-                <option value="author">Specific Author</option>
-              </select>
-            </div>
-            <div class="form-group" id="author-select-group" style="display: none;">
-              <label>Author *</label>
-              <select id="new-coupon-author">
-                <option value="">Select Author</option>
-                ${authors.map(author => `<option value="${author._id}">${author.name} (${author.email})</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Valid From (optional)</label>
-              <input type="datetime-local" id="new-coupon-validFrom">
-            </div>
-            <div class="form-group">
-              <label>Valid To (optional)</label>
-              <input type="datetime-local" id="new-coupon-validTo">
-            </div>
+            <div class="form-group"><label>Code *</label><input type="text" id="new-coupon-code" placeholder="e.g., SAVE20" required></div>
+            <div class="form-group"><label>Discount % * (1-100)</label><input type="number" id="new-coupon-percentage" min="1" max="100" required></div>
+            <div class="form-group"><label>Scope *</label><select id="new-coupon-scope" onchange="toggleAuthorSelect()" required><option value="all">All Books</option><option value="author">Specific Author</option></select></div>
+            <div class="form-group" id="author-select-group" style="display: none;"><label>Author *</label><select id="new-coupon-author"><option value="">Select Author</option>${authors.map(a => `<option value="${a._id}">${a.name} (${a.email})</option>`).join('')}</select></div>
+            <div class="form-group"><label>Valid From (optional)</label><input type="datetime-local" id="new-coupon-validFrom"></div>
+            <div class="form-group"><label>Valid To (optional)</label><input type="datetime-local" id="new-coupon-validTo"></div>
             <button class="btn btn-primary" onclick="createCoupon()">Create Coupon</button>
             <button class="btn btn-secondary" onclick="hideCreateCouponForm()" style="margin-left: 0.5rem;">Cancel</button>
           </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Discount %</th>
-                <th>Scope</th>
-                <th>Author</th>
-                <th>Status</th>
-                <th>Valid From</th>
-                <th>Valid To</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${coupons.length === 0 ? '<tr><td colspan="8">No coupons created yet</td></tr>' : coupons.map(coupon => `
-                <tr>
-                  <td><strong>${coupon.code}</strong></td>
-                  <td>${coupon.discountPercentage}%</td>
-                  <td>${coupon.scope === 'author' ? 'Author' : 'All'}</td>
-                  <td>${coupon.author ? coupon.author.name : '-'}</td>
-                  <td>
-                    <span style="padding: 0.3rem 0.6rem; border-radius: 3px; font-size: 0.85rem;
-                      background-color: ${coupon.isActive ? '#d4edda' : '#f8d7da'};
-                      color: ${coupon.isActive ? '#155724' : '#721c24'};">
-                      ${coupon.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td>${coupon.validFrom ? new Date(coupon.validFrom).toLocaleDateString() : '-'}</td>
-                  <td>${coupon.validTo ? new Date(coupon.validTo).toLocaleDateString() : '-'}</td>
-                  <td>
-                    <button class="btn btn-secondary btn-small" onclick="toggleCouponStatus('${coupon._id}')">
-                      ${coupon.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button class="btn btn-danger btn-small" onclick="deleteCoupon('${coupon._id}')" style="margin-left: 0.5rem;">Delete</button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
         `;
+
+        if (mobile) {
+          container.innerHTML = `<h2>Discount Codes</h2><button class="btn btn-primary" onclick="showCreateCouponForm()" style="margin-bottom: 1rem;">Create New Coupon</button>${formHtml}
+          <div class="mobile-cards">${coupons.length === 0 ? '<p class="muted">No coupons yet.</p>' : coupons.map(c => `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div><div class="mobile-card-title">${c.code}</div><div class="mobile-card-subtitle">${c.discountPercentage}% · ${c.scope === 'author' ? 'Author' : 'All'} · <span class="badge ${c.isActive ? 'badge-success' : 'badge-danger'}">${c.isActive ? 'Active' : 'Inactive'}</span></div></div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  <button class="btn btn-secondary btn-small" onclick="toggleCouponStatus('${c._id}')">${c.isActive ? 'Deactivate' : 'Activate'}</button>
+                  <button class="btn btn-danger btn-small" onclick="deleteCoupon('${c._id}')">Delete</button>
+                </div>
+              </div>
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><span class="k">Code</span><span class="v">${c.code}</span></div>
+                <div class="mobile-kv"><span class="k">Discount</span><span class="v">${c.discountPercentage}%</span></div>
+                <div class="mobile-kv"><span class="k">Author</span><span class="v">${c.author ? c.author.name : '-'}</span></div>
+                <div class="mobile-kv"><span class="k">Valid From</span><span class="v">${c.validFrom ? new Date(c.validFrom).toLocaleDateString() : '-'}</span></div>
+                <div class="mobile-kv"><span class="k">Valid To</span><span class="v">${c.validTo ? new Date(c.validTo).toLocaleDateString() : '-'}</span></div>
+              </div>
+            </div>
+          `).join('')}</div>`;
+          wireMobileToggles();
+        } else {
+          container.innerHTML = `<h2>Discount Codes</h2><button class="btn btn-primary" onclick="showCreateCouponForm()" style="margin-bottom: 1rem;">Create New Coupon</button>${formHtml}
+          <div class="table-wrap"><table><thead><tr><th>Code</th><th>Discount %</th><th>Scope</th><th>Author</th><th>Status</th><th>Valid From</th><th>Valid To</th><th>Actions</th></tr></thead><tbody>
+            ${coupons.length === 0 ? '<tr><td colspan="8">No coupons created yet</td></tr>' : coupons.map(c => `
+              <tr><td><strong>${c.code}</strong></td><td>${c.discountPercentage}%</td><td>${c.scope === 'author' ? 'Author' : 'All'}</td><td>${c.author ? c.author.name : '-'}</td>
+              <td><span class="badge ${c.isActive ? 'badge-success' : 'badge-danger'}">${c.isActive ? 'Active' : 'Inactive'}</span></td>
+              <td>${c.validFrom ? new Date(c.validFrom).toLocaleDateString() : '-'}</td><td>${c.validTo ? new Date(c.validTo).toLocaleDateString() : '-'}</td>
+              <td><button class="btn btn-secondary btn-small" onclick="toggleCouponStatus('${c._id}')">${c.isActive ? 'Deactivate' : 'Activate'}</button><button class="btn btn-danger btn-small" onclick="deleteCoupon('${c._id}')" style="margin-left:0.5rem;">Delete</button></td></tr>
+            `).join('')}</tbody></table></div>`;
+        }
       } catch (error) {
-        document.getElementById('dashboard-content').innerHTML =
-          `<p class="alert alert-error">Error loading coupons: ${error.message}</p>`;
+        document.getElementById('dashboard-content').innerHTML = `<p class="alert alert-error">Error loading coupons: ${error.message}</p>`;
       }
     }
 

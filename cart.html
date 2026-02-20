@@ -11,10 +11,12 @@
   <header>
     <nav>
       <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
         <li><a href="store.html">Store</a></li>
         <li><a href="cart.html">Cart</a></li>
+        <li><a href="support.html">Support</a></li>
       </ul>
     </nav>
   </header>
@@ -59,8 +61,31 @@
     </div>
   </div>
 
+  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="support.html" style="color: var(--primary-color); text-decoration: none; margin: 0 1rem;">Support</a>
+        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 1rem;">Privacy Policy</a>
+        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 1rem;">Terms & Conditions</a>
+      </p>
+    </div>
+  </footer>
+
   <script src="./js/api.js"></script>
   <script src="./js/auth.js"></script>
   <script src="./js/cart.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (btn && nav) {
+        btn.addEventListener('click', () => {
+          nav.classList.toggle('open');
+          btn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+        });
+      }
+    });
+  </script>
 </body>
 </html>

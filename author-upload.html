@@ -11,9 +11,11 @@
   <header>
     <nav>
       <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
         <li><a href="author-dashboard.html">Dashboard</a></li>
+        <li><a href="support.html">Support</a></li>
       </ul>
     </nav>
   </header>
@@ -67,6 +69,11 @@
     requireRole('author');
 
     document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (menuBtn && nav) {
+        menuBtn.addEventListener('click', () => { nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false'); });
+      }
       const urlParams = new URLSearchParams(window.location.search);
       const bookId = urlParams.get('id');
       const isEditMode = !!bookId;
