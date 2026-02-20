@@ -130,15 +130,8 @@ function calculateTotal(books, couponData) {
   let discountHtml = '';
 
   if (couponData && couponData.success) {
-    const code = couponData.discountCode;
-    const percentage = couponData.discountPercentage;
     discountAmount = Number(couponData.discountAmount || 0);
-
-    discountHtml = `
-      <p style="margin: 0.25rem 0;">
-        Applied code <strong>${code}</strong> (${percentage}% off).
-      </p>
-    `;
+    // Poruka je već prikazana u cart-coupon-message
   }
 
   if (subtotalEl) subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
