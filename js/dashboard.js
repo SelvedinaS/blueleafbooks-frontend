@@ -1,4 +1,146 @@
-// Display author dashboard
+// Dashboard logic (customer / author / admin)
+
+// Helper: mobile breakpoint
+function isMobileView() {
+  return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+
+// Safe file URL helper (prevents crashes if missing elsewhere)
+function fileUrl(path) {
+  try {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    // FILE_BASE_URL should exist globally (set in your main.js / config)
+    if (typeof FILE_BASE_URL === 'undefined') return String(path);
+    return `${FILE_BASE_URL}/${String(path).replace(/^\/+/, '')}`;
+  } catch {
+    return String(path || '');
+  }
+}
+
+// Simple debounce
+function debounce(fn, wait = 150) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
+
+// Cache last loaded data so we can re-render on resize without refetch
+let _lastViewMode = isMobileView() ? 'mobile' : 'desktop';
+let _authorCache = null; // dashboard object
+let _adminCache = null;  // {books, authors, orders, earnings}
+let _customerCache = null; // orders array
+
+// Init by page
+document.addEventListener('DOMContentLoaded', () => {
+  const path = (window.location.pathname || '').toLowerCase();
+
+  if (path.includes('customer-dashboard')) {
+    loadCustomerDashboard();
+  } else if (path.includes('author-dashboard')) {
+    loadAuthorDashboard();
+  } else if (path.includes('admin-dashboard')) {
+    loadAdminDashboard();
+  }
+
+  // Re-render UI when switching between mobile/desktop width
+  window.addEventListener('resize', debounce(() => {
+    const mode = isMobileView() ? 'mobile' : 'desktop';
+    if (mode === _lastViewMode) return;
+    _lastViewMode = mode;
+
+    const p = (window.location.pathname || '').toLowerCase();
+    if (p.includes('customer-dashboard') && _customerCache) {
+      displayMyLibrary(_customerCache);
+    } else if (p.includes('author-dashboard') && _authorCache) {
+      displayAuthorDashboard(_authorCache);
+    } else if (p.includes('admin-dashboard') && _adminCache) {
+      displayAdminDashboard(_adminCache);
+    }
+  }, 200));
+});
+
+/* =========================
+   CUSTOMER DASHBOARD
+========================= */
+async function loadCustomerDashboard() {
+  if (!requireAuth()) return;
+  if (!requireRole('customer')) return;
+
+  try {
+    const orders = await ordersAPI.getMyOrders();
+    _customerCache = Array.isArray(orders) ? orders : [];
+    displayMyLibrary(_customerCache);
+  } catch (error) {
+    console.error('Error loading customer dashboard:', error);
+    const el = document.getElementById('dashboard-content');
+    if (el) el.innerHTML = '<p class="alert alert-error">Error loading your library. Please try again.</p>';
+  }
+}
+
+function displayMyLibrary(orders) {
+  const container = document.getElementById('dashboard-content');
+  if (!container) return;
+
+  const purchasedBooks = [];
+  (orders || []).forEach(order => {
+    if (order?.paymentStatus === 'completed') {
+      (order.items || []).forEach(item => {
+        if (!item?.book) return;
+        purchasedBooks.push({
+          ...item.book,
+          purchaseDate: order.createdAt,
+          orderId: order._id
+        });
+      });
+    }
+  });
+
+  if (purchasedBooks.length === 0) {
+    container.innerHTML = `<p class="alert alert-info">You haven't purchased any books yet. <a href="store.html">Browse books</a></p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <h2>My Library</h2>
+    <div class="books-grid">
+      ${purchasedBooks.map(book => `
+        <div class="book-card">
+          <img src="${fileUrl(book.coverImage)}" alt="${book.title || 'Book'}"
+               onerror="this.onerror=null;this.src='https://via.placeholder.com/250x300?text=No+Cover'">
+          <div class="book-card-content">
+            <div class="book-card-title">${book.title || '-'}</div>
+            <div class="book-card-author">${book.author?.name || 'Unknown Author'}</div>
+            <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0;">Purchased: ${book.purchaseDate ? new Date(book.purchaseDate).toLocaleDateString() : '-'}</p>
+            <a href="${fileUrl(book.pdfFile)}" class="btn btn-primary btn-small" download>Download PDF</a>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* =========================
+   AUTHOR DASHBOARD
+========================= */
+async function loadAuthorDashboard() {
+  if (!requireAuth()) return;
+  if (!requireRole('author')) return;
+
+  try {
+    const dashboard = await authorsAPI.getDashboard();
+    _authorCache = dashboard || {};
+    await displayAuthorDashboard(_authorCache);
+  } catch (error) {
+    console.error('Error loading author dashboard:', error);
+    const el = document.getElementById('dashboard-content');
+    if (el) el.innerHTML = '<p class="alert alert-error">Error loading dashboard. Please try again.</p>';
+  }
+}
+
+// Display author dashboard (Pro UI + reports + payout settings)
 async function displayAuthorDashboard(data) {
   const container = document.getElementById('dashboard-content');
   if (!container) return;
@@ -100,11 +242,7 @@ async function displayAuthorDashboard(data) {
           </div>
           <div style="margin-top:0.35rem;">
             Status:
-            ${
-              lastMonthPaid
-                ? '<span class="badge badge-success">PAID</span>'
-                : '<span class="badge badge-warning">UNPAID</span>'
-            }
+            ${lastMonthPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}
           </div>
         </div>
 
@@ -175,11 +313,9 @@ async function displayAuthorDashboard(data) {
 
   // Hook report button
   const btn = document.getElementById('author-download-report');
-  if (btn) {
-    btn.onclick = downloadAuthorMonthlyReport;
-  }
+  if (btn) btn.onclick = downloadAuthorMonthlyReport;
 
-  // Populate month/year dropdowns (simple, stable)
+  // Populate month/year dropdowns
   const monthSelect = document.getElementById('author-report-month');
   const yearSelect = document.getElementById('author-report-year');
 
@@ -206,5 +342,557 @@ async function displayAuthorDashboard(data) {
     }
   }
 
-  displayAuthorBooks(data.booksList);
+  displayAuthorBooks(data.booksList || []);
+}
+
+// Download monthly earnings PDF for author
+async function downloadAuthorMonthlyReport() {
+  const alertContainer = document.getElementById('author-reports-alert');
+  if (alertContainer) alertContainer.innerHTML = '';
+
+  const monthEl = document.getElementById('author-report-month');
+  const yearEl = document.getElementById('author-report-year');
+  const month = parseInt(monthEl?.value || '', 10);
+  const year = parseInt(yearEl?.value || '', 10);
+
+  if (!month || !year) {
+    if (alertContainer) {
+      alertContainer.innerHTML = '<div class="alert alert-error">Please select a valid month and year.</div>';
+    } else {
+      alert('Please select a valid month and year.');
+    }
+    return;
+  }
+
+  try {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/authors/reports/monthly/${year}/${month}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || 'Failed to generate report');
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const monthPadded = String(month).padStart(2, '0');
+    link.href = url;
+    link.download = `blueleafbooks-earnings-${year}-${monthPadded}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading author report:', error);
+    if (alertContainer) {
+      alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+    } else {
+      alert('Error downloading report: ' + error.message);
+    }
+  }
+}
+
+// Save payout settings
+async function savePayoutSettings() {
+  const alertContainer = document.getElementById('payout-settings-alert');
+  const emailInput = document.getElementById('payout-paypal-email');
+  const email = (emailInput?.value || '').trim();
+
+  if (alertContainer) alertContainer.innerHTML = '';
+
+  if (email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      if (alertContainer) alertContainer.innerHTML = '<div class="alert alert-error">Please enter a valid email address</div>';
+      return;
+    }
+  }
+
+  try {
+    await authorsAPI.updatePayoutSettings({ payoutPaypalEmail: email });
+    if (alertContainer) alertContainer.innerHTML = '<div class="alert alert-success">Payout settings saved successfully!</div>';
+  } catch (error) {
+    if (alertContainer) alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+  }
+}
+
+// Mobile: toggle details
+function wireMobileToggles() {
+  document.querySelectorAll('.mobile-toggle').forEach(btn => {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', (e) => {
+      const card = e.currentTarget.closest('.mobile-card');
+      if (!card) return;
+      card.classList.toggle('is-open');
+      e.currentTarget.textContent = card.classList.contains('is-open') ? 'Hide' : 'Details';
+    });
+  });
+}
+
+// Display author books
+function displayAuthorBooks(books) {
+  const container = document.getElementById('author-books-list');
+  if (!container) return;
+
+  if (!Array.isArray(books) || books.length === 0) {
+    container.innerHTML = `<p class="alert alert-info">You haven't uploaded any books yet.</p>`;
+    return;
+  }
+
+  if (isMobileView()) {
+    container.innerHTML = `
+      <div class="mobile-cards">
+        ${books.map(book => {
+          const isDeleted = !!book.isDeleted;
+          const status = String(book.status || '').toLowerCase();
+          const statusLabel = isDeleted
+            ? 'Deleted by admin'
+            : status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Unknown';
+
+          const badgeClass = isDeleted
+            ? 'badge-danger'
+            : status === 'approved'
+              ? 'badge-success'
+              : status === 'pending'
+                ? 'badge-warning'
+                : 'badge-danger';
+
+          return `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div>
+                  <div class="mobile-card-title">${isDeleted ? '[DELETED] ' : ''}${book.title || '-'}</div>
+                  <div class="mobile-card-subtitle">
+                    <span class="badge ${badgeClass}">${statusLabel}</span>
+                    <span style="margin-left:8px;">$${Number(book.price || 0).toFixed(2)}</span>
+                    <span style="margin-left:8px;">Sales: ${Number(book.salesCount || 0)}</span>
+                  </div>
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  ${!isDeleted ? `<button class="btn btn-secondary btn-small" type="button" onclick="editBook('${book._id}')">Edit</button>` : ''}
+                </div>
+              </div>
+
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><div class="k">Genre</div><div class="v">${book.genre || '-'}</div></div>
+                <div class="mobile-kv"><div class="k">Price</div><div class="v">$${Number(book.price || 0).toFixed(2)}</div></div>
+                <div class="mobile-kv"><div class="k">Sales</div><div class="v">${Number(book.salesCount || 0)}</div></div>
+                <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                  <img
+                    src="${fileUrl(book.coverImage)}"
+                    alt="${book.title || 'Cover'}"
+                    style="width:64px;height:80px;object-fit:cover;border-radius:10px;"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.onerror=null;this.src='https://via.placeholder.com/64x80?text=No+Cover';"
+                  >
+                  <div class="muted" style="font-size:0.9rem;">
+                    ${isDeleted ? 'This book was deleted by admin.' : 'Tap Edit to update this book.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    wireMobileToggles();
+    return;
+  }
+
+  // Desktop table
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cover</th>
+            <th>Title</th>
+            <th>Genre</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Sales</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${books.map(book => {
+            const isDeleted = !!book.isDeleted;
+            const status = String(book.status || '').toLowerCase();
+            const statusLabel = isDeleted
+              ? 'Deleted by admin'
+              : status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Unknown';
+
+            const badgeClass = isDeleted
+              ? 'badge-danger'
+              : status === 'approved'
+                ? 'badge-success'
+                : status === 'pending'
+                  ? 'badge-warning'
+                  : 'badge-danger';
+
+            return `
+              <tr>
+                <td>
+                  <img
+                    src="${fileUrl(book.coverImage)}"
+                    alt="${book.title || 'Cover'}"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.onerror=null;this.src='https://via.placeholder.com/52x66?text=No+Cover';"
+                  >
+                </td>
+                <td>${isDeleted ? '[DELETED] ' + (book.title || '-') : (book.title || '-')}</td>
+                <td>${book.genre || '-'}</td>
+                <td>$${Number(book.price || 0).toFixed(2)}</td>
+                <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+                <td>${Number(book.salesCount || 0)}</td>
+                <td>
+                  ${!isDeleted
+                    ? `<button class="btn btn-secondary btn-small" type="button" onclick="editBook('${book._id}')">Edit</button>`
+                    : `<span class="muted" style="font-size:0.85rem;">This book was deleted by admin</span>`
+                  }
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Edit book
+function editBook(bookId) {
+  window.location.href = `author-upload.html?id=${bookId}`;
+}
+
+/* =========================
+   ADMIN DASHBOARD
+========================= */
+async function loadAdminDashboard() {
+  if (!requireAuth()) return;
+  if (!requireRole('admin')) return;
+
+  try {
+    const [books, authors, orders, earnings] = await Promise.all([
+      adminAPI.getAllBooks('all'),
+      adminAPI.getAllAuthors(),
+      adminAPI.getAllOrders(),
+      adminAPI.getEarnings()
+    ]);
+
+    _adminCache = {
+      books: books || [],
+      authors: authors || [],
+      orders: orders || [],
+      earnings: earnings || {}
+    };
+
+    displayAdminDashboard(_adminCache);
+  } catch (error) {
+    console.error('Error loading admin dashboard:', error);
+    const el = document.getElementById('dashboard-content');
+    if (el) el.innerHTML = '<p class="alert alert-error">Error loading dashboard. Please try again.</p>';
+  }
+}
+
+function displayAdminDashboard(data) {
+  const container = document.getElementById('dashboard-content');
+  if (!container) return;
+
+  const booksArr = Array.isArray(data.books) ? data.books : [];
+  const authorsArr = Array.isArray(data.authors) ? data.authors : [];
+  const pendingBooks = booksArr.filter(b => String(b.status || '').toLowerCase() === 'pending');
+
+  container.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Books</h3>
+        <div class="value">${booksArr.length}</div>
+      </div>
+      <div class="stat-card">
+        <h3>Pending Approval</h3>
+        <div class="value">${pendingBooks.length}</div>
+      </div>
+      <div class="stat-card">
+        <h3>Total Authors</h3>
+        <div class="value">${authorsArr.length}</div>
+      </div>
+      <div class="stat-card">
+        <h3>Platform Earnings</h3>
+        <div class="value">$${Number(data.earnings?.totalEarnings || 0).toFixed(2)}</div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Pending Books</h2>
+      </div>
+      <div id="pending-books"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Authors</h2>
+      </div>
+      <div id="authors-table"></div>
+    </div>
+  `;
+
+  displayPendingBooks(pendingBooks);
+  displayAuthorsTable(authorsArr);
+}
+
+function displayAuthorsTable(authors) {
+  const container = document.getElementById('authors-table');
+  if (!container) return;
+
+  if (!Array.isArray(authors) || authors.length === 0) {
+    container.innerHTML = '<p class="alert alert-info">No authors found.</p>';
+    return;
+  }
+
+  if (isMobileView()) {
+    container.innerHTML = `
+      <div class="mobile-cards">
+        ${authors.map(a => {
+          const status = a.isBlocked ? 'Blocked' : 'Active';
+          const blockedAt = a.blockedAt ? new Date(a.blockedAt).toLocaleString() : '-';
+          const reason = a.blockedReason ? a.blockedReason : '-';
+          return `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div>
+                  <div class="mobile-card-title">${a.name || '—'}</div>
+                  <div class="mobile-card-subtitle">
+                    <span class="badge ${a.isBlocked ? 'badge-danger' : 'badge-success'}">${status}</span>
+                    <span style="margin-left:8px;">${a.email || '—'}</span>
+                  </div>
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  ${a.isBlocked
+                    ? `<button class="btn btn-success btn-small" type="button" onclick="unblockAuthor('${a._id}')">Unblock</button>`
+                    : `<button class="btn btn-danger btn-small" type="button" onclick="blockAuthorPrompt('${a._id}')">Block</button>`
+                  }
+                </div>
+              </div>
+
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><div class="k">PayPal</div><div class="v">${a.payoutPaypalEmail || '—'}</div></div>
+                <div class="mobile-kv"><div class="k">Reason</div><div class="v">${reason}</div></div>
+                <div class="mobile-kv"><div class="k">Blocked at</div><div class="v">${blockedAt}</div></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    wireMobileToggles();
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Author</th>
+            <th>Email</th>
+            <th>PayPal</th>
+            <th>Status</th>
+            <th>Reason</th>
+            <th>Blocked At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${authors.map(a => {
+            const status = a.isBlocked ? 'Blocked' : 'Active';
+            const blockedAt = a.blockedAt ? new Date(a.blockedAt).toLocaleString() : '-';
+            const reason = a.blockedReason ? a.blockedReason : '-';
+            return `
+              <tr>
+                <td>${a.name || '—'}</td>
+                <td>${a.email || '—'}</td>
+                <td>${a.payoutPaypalEmail || '—'}</td>
+                <td><span class="badge ${a.isBlocked ? 'badge-danger' : 'badge-success'}">${status}</span></td>
+                <td>${reason}</td>
+                <td>${blockedAt}</td>
+                <td>
+                  ${a.isBlocked
+                    ? `<button class="btn btn-success btn-small" type="button" onclick="unblockAuthor('${a._id}')">Unblock</button>`
+                    : `<button class="btn btn-danger btn-small" type="button" onclick="blockAuthorPrompt('${a._id}')">Block</button>`
+                  }
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function displayPendingBooks(books) {
+  const container = document.getElementById('pending-books');
+  if (!container) return;
+
+  if (!Array.isArray(books) || books.length === 0) {
+    container.innerHTML = '<p class="alert alert-info">No pending books.</p>';
+    return;
+  }
+
+  if (isMobileView()) {
+    container.innerHTML = `
+      <div class="mobile-cards">
+        ${books.map(book => `
+          <div class="mobile-card">
+            <div class="mobile-card-header">
+              <div>
+                <div class="mobile-card-title">${book.title || '-'}</div>
+                <div class="mobile-card-subtitle">${book.author?.name || 'Unknown'} · $${Number(book.price || 0).toFixed(2)}</div>
+              </div>
+              <div class="mobile-card-actions">
+                <button class="mobile-toggle" type="button">Details</button>
+                <button class="btn btn-success btn-small" type="button" onclick="approveBook('${book._id}')">Approve</button>
+                <button class="btn btn-danger btn-small" type="button" onclick="rejectBook('${book._id}')">Reject</button>
+              </div>
+            </div>
+            <div class="mobile-card-details">
+              <div class="mobile-kv"><div class="k">Genre</div><div class="v">${book.genre || '-'}</div></div>
+              <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                <img src="${fileUrl(book.coverImage)}" alt="${book.title || 'Cover'}"
+                     style="width:64px;height:80px;object-fit:cover;border-radius:10px;"
+                     onerror="this.onerror=null;this.src='https://via.placeholder.com/64x80?text=No+Cover'">
+                <div class="muted" style="font-size:0.9rem;">Tap Approve/Reject.</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    wireMobileToggles();
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cover</th>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Genre</th>
+            <th>Price</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${books.map(book => `
+            <tr>
+              <td>
+                <img src="${fileUrl(book.coverImage)}" alt="${book.title || 'Cover'}"
+                     style="width: 50px; height: 60px; object-fit: cover; border-radius: 8px;"
+                     onerror="this.onerror=null;this.src='https://via.placeholder.com/50x60?text=No+Cover'">
+              </td>
+              <td>${book.title || '-'}</td>
+              <td>${book.author?.name || 'Unknown'}</td>
+              <td>${book.genre || '-'}</td>
+              <td>$${Number(book.price || 0).toFixed(2)}</td>
+              <td>
+                <button class="btn btn-success btn-small" type="button" onclick="approveBook('${book._id}')">Approve</button>
+                <button class="btn btn-danger btn-small" type="button" onclick="rejectBook('${book._id}')">Reject</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function approveBook(bookId) {
+  try {
+    await adminAPI.updateBookStatus(bookId, 'approved');
+    alert('Book approved successfully');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error approving book: ' + error.message);
+  }
+}
+
+async function rejectBook(bookId) {
+  if (!confirm('Are you sure you want to reject this book?')) return;
+
+  try {
+    await adminAPI.updateBookStatus(bookId, 'rejected');
+    alert('Book rejected');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error rejecting book: ' + error.message);
+  }
+}
+
+async function blockAuthorPrompt(authorId) {
+  const reason = prompt('Reason for blocking (optional):', 'Unpaid platform fee');
+  try {
+    await adminAPI.blockAuthor(authorId, reason || 'Unpaid platform fee');
+    alert('Author blocked. Their books are now hidden and they cannot publish new ones.');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error blocking author: ' + error.message);
+  }
+}
+
+async function unblockAuthor(authorId) {
+  try {
+    await adminAPI.unblockAuthor(authorId);
+    alert('Author unblocked.');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error unblocking author: ' + error.message);
+  }
+}
+
+// Admin: update curated featured flag/order for a book
+async function updateFeatured(bookId) {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      alert('Please login again.');
+      return;
+    }
+
+    const checkbox = document.getElementById(`feat-${bookId}`);
+    const orderInput = document.getElementById(`featOrder-${bookId}`);
+
+    const isFeatured = !!checkbox?.checked;
+    const featuredOrder = Math.max(0, parseInt(orderInput?.value || '0', 10) || 0);
+
+    const res = await fetch(`${API_BASE_URL}/admin/books/${bookId}/featured`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ isFeatured, featuredOrder })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.message || 'Failed to update featured settings');
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error updating featured settings');
+  }
 }
