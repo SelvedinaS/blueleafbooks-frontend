@@ -245,7 +245,7 @@
     if (!document.getElementById('paypal-sdk')) {
       const script = document.createElement('script');
       script.id = 'paypal-sdk';
-      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&disable-funding=card`;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD`;
       script.onload = () => {
         try {
           container.innerHTML = '';
@@ -262,8 +262,8 @@
   } catch (err) {
     container.innerHTML = `
       <div class="alert alert-error">
-        <p><strong>PayPal nije konfiguriran.</strong></p>
-        <p>${escapeHtml(err.message || 'Kontaktirajte podršku.')}</p>
+        <p><strong>PayPal is not configured.</strong></p>
+        <p>${escapeHtml(err.message || 'Contact support.')}</p>
       </div>
     `;
   }
@@ -285,7 +285,7 @@ function renderPayPalButtons() {
         return res.id || res.orderId;
       } catch (e) {
         console.error('PayPal createOrder error:', e);
-        throw new Error(e.message || 'Greška pri kreiranju narudžbe.');
+        throw new Error(e.message || 'Error creating order.');
       }
     },
     onApprove: async (data) => {
@@ -310,7 +310,7 @@ function renderPayPalButtons() {
     },
     onError: (err) => {
       console.error('PayPal error:', err);
-      const msg = (err && err.message) ? err.message : 'Greška pri plaćanju. Pokušajte ponovo.';
+      const msg = (err && err.message) ? err.message : 'Payment error. Please try again.';
       container.innerHTML = `<p class="alert alert-error">${escapeHtml(msg)}</p>`;
     }
   }).render('#paypal-button-container');

@@ -1,5 +1,4 @@
 let currentCartBooks = [];
-let currentCartCoupon = null; // last successful coupon application
 
 function fileUrl(path) {
   if (!path) return '';
@@ -16,7 +15,6 @@ async function loadCart() {
       '<p class="alert alert-info">Your cart is empty. <a href="store.html">Browse books</a></p>';
     document.getElementById('cart-summary').style.display = 'none';
     currentCartBooks = [];
-    currentCartCoupon = null;
     return;
   }
 
@@ -38,7 +36,6 @@ async function loadCart() {
     if (books.length === 0) {
       localStorage.setItem('cart', JSON.stringify([]));
       currentCartBooks = [];
-      currentCartCoupon = null;
       document.getElementById('cart-items').innerHTML =
         '<p class="alert alert-info">Your cart is empty (items were removed or no longer available). <a href="store.html">Browse books</a></p>';
       document.getElementById('cart-summary').style.display = 'none';
@@ -57,8 +54,8 @@ async function loadCart() {
       alert('This book is no longer available and was removed from your cart.');
     }
 
-    displayCartItems(books, currentCartCoupon);
-    calculateTotal(books, currentCartCoupon);
+    displayCartItems(books);
+    calculateTotal(books);
   } catch (error) {
     console.error('Error loading cart:', error);
     document.getElementById('cart-items').innerHTML =
@@ -66,26 +63,13 @@ async function loadCart() {
   }
 }
 
-// Display cart items (with optional per-book discounts)
-function displayCartItems(books, couponData) {
+// Display cart items (books only)
+function displayCartItems(books) {
   const container = document.getElementById('cart-items');
   if (!container) return;
 
-  let discountMap = {};
-  if (couponData && couponData.success && Array.isArray(couponData.discountedItems)) {
-    discountMap = couponData.discountedItems.reduce((acc, item) => {
-      acc[item.bookId] = item;
-      return acc;
-    }, {});
-  }
-
   container.innerHTML = books.map(book => {
-    const discountInfo = discountMap[book._id] || null;
-    const originalPrice = Number(book.price || 0);
-    const discountedPrice = discountInfo ? Number(discountInfo.discountedPrice || originalPrice) : originalPrice;
-    const perBookDiscount = discountInfo ? Number(discountInfo.discountAmount || 0) : 0;
-    const hasDiscount = perBookDiscount > 0.0001;
-
+    const price = Number(book.price || 0);
     return `
       <div class="cart-item">
         <img src="${fileUrl(book.coverImage)}" alt="${book.title}" onerror="this.src='https://via.placeholder.com/100x120?text=No+Cover'">
@@ -94,13 +78,7 @@ function displayCartItems(books, couponData) {
           <p>${book.author?.name || 'Unknown Author'}</p>
         </div>
         <div class="cart-item-price">
-          ${hasDiscount ? `
-            <div style="text-decoration: line-through; color:#999;">$${originalPrice.toFixed(2)}</div>
-            <div style="color:#28a745; font-weight:bold;">$${discountedPrice.toFixed(2)}</div>
-            <div style="font-size:0.85rem; color:#28a745;">- $${perBookDiscount.toFixed(2)}</div>
-          ` : `
-            <div>$${originalPrice.toFixed(2)}</div>
-          `}
+          <div>$${price.toFixed(2)}</div>
         </div>
         <button class="btn btn-danger btn-small" onclick="removeFromCart('${book._id}')">Remove</button>
       </div>
@@ -117,101 +95,12 @@ function removeFromCart(bookId) {
   updateCartCount();
 }
 
-// Calculate total (with optional coupon)
-function calculateTotal(books, couponData) {
-  const subtotal = books.reduce((sum, book) => sum + Number(book.price || 0), 0);
-  const subtotalEl = document.getElementById('cart-subtotal');
-  const discountRow = document.getElementById('cart-discount-row');
-  const discountAmountEl = document.getElementById('cart-discount-amount');
+// Calculate total
+function calculateTotal(books) {
+  const total = books.reduce((sum, book) => sum + Number(book.price || 0), 0);
   const totalEl = document.getElementById('cart-total');
-  const discountedItemsEl = document.getElementById('cart-discounted-items');
-
-  let discountAmount = 0;
-  let discountHtml = '';
-
-  if (couponData && couponData.success) {
-    discountAmount = Number(couponData.discountAmount || 0);
-    // Poruka je već prikazana u cart-coupon-message
-  }
-
-  if (subtotalEl) subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
-
-  if (discountRow && discountAmountEl) {
-    if (discountAmount > 0) {
-      discountRow.style.display = 'flex';
-      discountAmountEl.textContent = `- $${discountAmount.toFixed(2)}`;
-    } else {
-      discountRow.style.display = 'none';
-      discountAmountEl.textContent = '';
-    }
-  }
-
-  if (discountedItemsEl) discountedItemsEl.innerHTML = discountHtml;
-
-  const total = subtotal - discountAmount;
   if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
-
   document.getElementById('cart-summary').style.display = 'block';
-}
-
-// Apply coupon from cart page
-async function applyCartCoupon() {
-  const input = document.getElementById('cart-coupon-input');
-  const messageEl = document.getElementById('cart-coupon-message');
-
-  if (!input || !messageEl) return;
-
-  const code = input.value.trim();
-  messageEl.textContent = '';
-  messageEl.style.color = '';
-
-  if (!code) {
-    currentCartCoupon = null;
-    displayCartItems(currentCartBooks, currentCartCoupon);
-    calculateTotal(currentCartBooks, currentCartCoupon);
-    messageEl.textContent = 'No code entered. You will pay full price.';
-    messageEl.style.color = '#555';
-    return;
-  }
-
-  if (!currentCartBooks || currentCartBooks.length === 0) {
-    messageEl.textContent = 'Cart is empty.';
-    messageEl.style.color = 'red';
-    return;
-  }
-
-  // Coupon apply requires login (backend endpoint is protected)
-  if (!isAuthenticated()) {
-    currentCartCoupon = null;
-    messageEl.textContent = 'Please login to apply a discount code.';
-    messageEl.style.color = 'red';
-    setTimeout(() => { window.location.href = 'login.html'; }, 600);
-    return;
-  }
-
-  try {
-    const bookIds = currentCartBooks.map(b => b._id);
-    const result = await checkoutAPI.applyCoupon({ code, bookIds });
-
-    if (result.success) {
-      currentCartCoupon = result;
-      messageEl.textContent = `Code applied: ${result.discountPercentage}% off. You save $${Number(result.discountAmount || 0).toFixed(2)}.`;
-      messageEl.style.color = 'green';
-    } else {
-      currentCartCoupon = null;
-      messageEl.textContent = result.message || 'Invalid or expired code.';
-      messageEl.style.color = 'red';
-    }
-
-    displayCartItems(currentCartBooks, currentCartCoupon);
-    calculateTotal(currentCartBooks, currentCartCoupon);
-  } catch (error) {
-    currentCartCoupon = null;
-    messageEl.textContent = error.message || 'Error applying coupon code.';
-    messageEl.style.color = 'red';
-    displayCartItems(currentCartBooks, currentCartCoupon);
-    calculateTotal(currentCartBooks, currentCartCoupon);
-  }
 }
 
 // Proceed to checkout
