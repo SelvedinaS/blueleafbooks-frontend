@@ -72,7 +72,7 @@ function displayCartItems(books) {
     const price = Number(book.price || 0);
     return `
       <div class="cart-item">
-        <img src="${fileUrl(book.coverImage)}" alt="${book.title}" onerror="this.src='https://via.placeholder.com/100x120?text=No+Cover'">
+        <img src="${fileUrl(book.coverImage)}" alt="${book.title}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://via.placeholder.com/100x120?text=No+Cover'">
         <div class="cart-item-info">
           <h3>${book.title}</h3>
           <p>${book.author?.name || 'Unknown Author'}</p>

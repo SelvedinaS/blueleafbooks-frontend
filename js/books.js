@@ -27,7 +27,7 @@ function displayBooks(books, containerId) {
 
     return `
       <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
-        <img src="${cover}" alt="${title}" onerror="this.src='https://via.placeholder.com/250x300?text=No+Cover'">
+        <img src="${cover}" alt="${title}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://via.placeholder.com/250x300?text=No+Cover'">
         <div class="book-card-content">
           <div class="book-card-title">${title}</div>
           <div class="book-card-author">${authorName}</div>
@@ -81,7 +81,9 @@ function displayBookDetails(book) {
 
   container.innerHTML = `
     <div class="book-details">
-      <img src="${cover}" alt="${book.title}" onerror="this.src='https://via.placeholder.com/300x400?text=No+Cover'">
+      <div class="book-cover-wrap">
+        <img src="${cover}" alt="${book.title}" loading="eager" decoding="async" width="300" height="400" onerror="this.onerror=null;this.src='https://via.placeholder.com/300x400?text=No+Cover'">
+      </div>
       <div class="book-info">
         <h1>${book.title}</h1>
         <div class="author">By ${book.author?.name || 'Unknown Author'}</div>
@@ -185,7 +187,7 @@ async function loadCuratedBooks() {
       const price = Number(book.price || 0).toFixed(2);
       return `
         <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
-          <img src="${cover}" alt="${title}" loading="lazy" onerror="this.src='https://via.placeholder.com/250x300?text=No+Cover'">
+          <img src="${cover}" alt="${title}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://via.placeholder.com/250x300?text=No+Cover'">
           <div class="book-card-content">
             <div class="book-card-title">${title}</div>
             <div class="book-card-author">${authorName}</div>
