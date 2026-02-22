@@ -112,7 +112,9 @@
             <p id="checkout-coupon-message" style="margin-top:0.4rem; font-size:0.9rem;"></p>
           </div>
 
-          <div id="paypal-button-container" style="margin-top: 2rem;"></div>
+          <div id="paypal-button-container" style="margin-top: 2rem; min-height: 50px;">
+            <p class="loading" style="margin: 0;">Loading payment options...</p>
+          </div>
         `;
 
         initializePayPalOrTestMode();
@@ -245,7 +247,7 @@
     if (!document.getElementById('paypal-sdk')) {
       const script = document.createElement('script');
       script.id = 'paypal-sdk';
-      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD`;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&components=buttons`;
       script.onload = () => {
         try {
           container.innerHTML = '';
@@ -264,6 +266,7 @@
       <div class="alert alert-error">
         <p><strong>PayPal is not configured.</strong></p>
         <p>${escapeHtml(err.message || 'Contact support.')}</p>
+        <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 0.5rem;">Try again</button>
       </div>
     `;
   }
@@ -311,7 +314,10 @@ function renderPayPalButtons() {
     onError: (err) => {
       console.error('PayPal error:', err);
       const msg = (err && err.message) ? err.message : 'Payment error. Please try again.';
-      container.innerHTML = `<p class="alert alert-error">${escapeHtml(msg)}</p>`;
+      container.innerHTML = `
+        <p class="alert alert-error">${escapeHtml(msg)}</p>
+        <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 0.5rem;">Try again</button>
+      `;
     }
   }).render('#paypal-button-container');
 }
