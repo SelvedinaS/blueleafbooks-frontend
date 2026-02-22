@@ -56,28 +56,16 @@
   <script src="./js/auth.js"></script>
   <script src="./js/books.js?v=3"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const menuBtn = document.querySelector('.menu-btn');
-      const nav = document.querySelector('.nav-links');
-      if (menuBtn && nav) {
-        menuBtn.addEventListener('click', () => {
-          nav.classList.toggle('open');
-          menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
-        });
-      }
-      const params = new URLSearchParams(window.location.search);
-      const bookId = params.get('id');
-      const container = document.querySelector('.book-details-container');
-
-      if (!bookId) {
-        if (container) {
-          container.innerHTML = '<p class="alert alert-error">Book ID not provided.</p>';
-        }
-        return;
-      }
-
-      loadBookDetails(bookId);
-    });
-  </script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const menuBtn = document.querySelector('.menu-btn');
+    const nav = document.querySelector('.nav-links');
+    if (menuBtn && nav) {
+      menuBtn.addEventListener('click', () => {
+        nav.classList.toggle('open');
+        menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+      });
+    }
+  });
+</script>
 </body>
 </html>
