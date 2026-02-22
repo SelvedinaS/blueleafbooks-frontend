@@ -1,9 +1,8 @@
 const API_BASE_URL = 'https://blueleafbooks-backend-geum.onrender.com/api';
 
-
-// ✅ Base URL for serving files (images/pdfs) from the backend host
-// Example: https://blueleafbooks-backend.onrender.com
-const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
+// Base URL for serving files (images/pdfs) - ensure it's always available globally
+const FILE_BASE_URL = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '').replace(/\/api\/?$/, '') || 'https://blueleafbooks-backend-geum.onrender.com';
+if (typeof window !== 'undefined') window.FILE_BASE_URL = FILE_BASE_URL;
 
 // Build absolute URL for a file stored as relative path in backend (e.g. uploads/covers/xyz.jpg)
 function fileUrl(relPath) {

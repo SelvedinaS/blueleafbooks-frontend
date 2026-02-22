@@ -3,8 +3,8 @@ function fileUrl(path) {
   if (!path) return '';
   // If backend already returns full URL, keep it
   if (/^https?:\/\//i.test(path)) return path;
-  // Ensure no double slashes
-  return `${FILE_BASE_URL}/${String(path).replace(/^\/+/, '')}`;
+  const base = (typeof FILE_BASE_URL !== 'undefined' ? FILE_BASE_URL : (window.FILE_BASE_URL || '')) || 'https://blueleafbooks-backend-geum.onrender.com';
+  return `${base.replace(/\/$/, '')}/${String(path).replace(/^\/+/, '')}`;
 }
 
 // Display books in grid
