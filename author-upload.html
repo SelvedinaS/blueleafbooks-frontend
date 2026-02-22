@@ -25,6 +25,16 @@
       <h2 id="form-title">Upload New Book</h2>
       <div id="alert-container"></div>
 
+      <div id="paypal-section" class="form-group" style="background:#f8f9fa;padding:1rem;border-radius:8px;margin-bottom:1.5rem;">
+        <label><strong>PayPal email (required for publishing)</strong></label>
+        <p class="muted" style="font-size:0.9rem;margin:0.25rem 0 0.5rem 0;">Earnings are sent to this address. You must set it before publishing books. You can also change it in <a href="author-dashboard.html">Dashboard → Payout Settings</a>.</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+          <input type="email" id="paypal-email" placeholder="your-paypal@email.com" style="flex:1;min-width:200px;padding:0.5rem;">
+          <button type="button" id="save-paypal-btn" class="btn btn-secondary">Save PayPal</button>
+        </div>
+        <div id="paypal-alert" style="margin-top:0.5rem;"></div>
+      </div>
+
       <form id="book-form" enctype="multipart/form-data">
         <div class="form-group">
           <label for="title">Title</label>
@@ -56,7 +66,7 @@
           <input type="file" id="pdfFile" name="pdfFile" accept=".pdf">
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Book</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%;" disabled title="Set your PayPal email above to publish books">Submit Book</button>
       </form>
     </div>
   </div>
@@ -68,6 +78,8 @@
     requireAuth();
     requireRole('author');
 
+    let hasPaypal = false;
+
     document.addEventListener('DOMContentLoaded', () => {
       const menuBtn = document.querySelector('.menu-btn');
       const nav = document.querySelector('.nav-links');
@@ -78,9 +90,57 @@
       const bookId = urlParams.get('id');
       const isEditMode = !!bookId;
 
+      loadPaypalSettings();
+      document.getElementById('save-paypal-btn').addEventListener('click', savePaypalSettings);
+
       if (isEditMode) {
         document.getElementById('form-title').textContent = 'Edit Book';
         loadBookForEdit(bookId);
+      }
+
+      async function loadPaypalSettings() {
+        try {
+          const s = await authorsAPI.getPayoutSettings();
+          const email = (s?.payoutPaypalEmail || '').trim();
+          hasPaypal = !!email;
+          document.getElementById('paypal-email').value = email;
+          updateSubmitState();
+        } catch (e) {
+          document.getElementById('paypal-alert').innerHTML = '<span class="alert alert-error">Could not load PayPal settings.</span>';
+        }
+      }
+
+      async function savePaypalSettings() {
+        const input = document.getElementById('paypal-email');
+        const alertEl = document.getElementById('paypal-alert');
+        const email = (input.value || '').trim();
+        if (email) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(email)) {
+            alertEl.innerHTML = '<span class="alert alert-error">Invalid email format.</span>';
+            return;
+          }
+        }
+        try {
+          await authorsAPI.updatePayoutSettings({ payoutPaypalEmail: email || null });
+          hasPaypal = !!email;
+          alertEl.innerHTML = '<span class="alert alert-success">PayPal saved!</span>';
+          updateSubmitState();
+          setTimeout(() => { alertEl.innerHTML = ''; }, 3000);
+        } catch (e) {
+          alertEl.innerHTML = '<span class="alert alert-error">' + (e.message || 'Failed to save') + '</span>';
+        }
+      }
+
+      function updateSubmitState() {
+        const btn = document.querySelector('#book-form button[type="submit"]');
+        if (hasPaypal) {
+          btn.disabled = false;
+          btn.title = '';
+        } else {
+          btn.disabled = true;
+          btn.title = 'Set your PayPal email above to publish books';
+        }
       }
 
       async function loadBookForEdit(id) {
@@ -98,6 +158,11 @@
 
       document.getElementById('book-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        if (!hasPaypal) {
+          document.getElementById('alert-container').innerHTML = '<div class="alert alert-error">You must set your PayPal email before publishing. Enter it above and click Save PayPal.</div>';
+          return;
+        }
 
         const alertContainer = document.getElementById('alert-container');
         alertContainer.innerHTML = '';
@@ -126,10 +191,10 @@
         try {
           if (isEditMode) {
             await booksAPI.update(bookId, formData);
-            alert('Book updated successfully! It will be reviewed again before going live.');
+            alert('Book updated successfully! It is now live on the store.');
           } else {
             await booksAPI.create(formData);
-            alert('Book submitted successfully! It will be reviewed before going live.');
+            alert('Book submitted successfully! It is now live on the store.');
           }
           window.location.href = 'author-dashboard.html';
         } catch (error) {

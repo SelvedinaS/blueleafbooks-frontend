@@ -665,17 +665,12 @@ function displayAdminDashboard(data) {
 
   const booksArr = Array.isArray(data.books) ? data.books : [];
   const authorsArr = Array.isArray(data.authors) ? data.authors : [];
-  const pendingBooks = booksArr.filter(b => String(b.status || '').toLowerCase() === 'pending');
 
   container.innerHTML = `
     <div class="stats-grid">
       <div class="stat-card">
         <h3>Total Books</h3>
         <div class="value">${booksArr.length}</div>
-      </div>
-      <div class="stat-card">
-        <h3>Pending Approval</h3>
-        <div class="value">${pendingBooks.length}</div>
       </div>
       <div class="stat-card">
         <h3>Total Authors</h3>
@@ -689,20 +684,12 @@ function displayAdminDashboard(data) {
 
     <div class="section-card">
       <div class="section-header">
-        <h2>Pending Books</h2>
-      </div>
-      <div id="pending-books"></div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
         <h2>Authors</h2>
       </div>
       <div id="authors-table"></div>
     </div>
   `;
 
-  displayPendingBooks(pendingBooks);
   displayAuthorsTable(authorsArr);
 }
 
@@ -795,107 +782,6 @@ function displayAuthorsTable(authors) {
       </table>
     </div>
   `;
-}
-
-function displayPendingBooks(books) {
-  const container = document.getElementById('pending-books');
-  if (!container) return;
-
-  if (!Array.isArray(books) || books.length === 0) {
-    container.innerHTML = '<p class="alert alert-info">No pending books.</p>';
-    return;
-  }
-
-  if (isMobileView()) {
-    container.innerHTML = `
-      <div class="mobile-cards">
-        ${books.map(book => `
-          <div class="mobile-card">
-            <div class="mobile-card-header">
-              <div>
-                <div class="mobile-card-title">${book.title || '-'}</div>
-                <div class="mobile-card-subtitle">${book.author?.name || 'Unknown'} · $${Number(book.price || 0).toFixed(2)}</div>
-              </div>
-              <div class="mobile-card-actions">
-                <button class="mobile-toggle" type="button">Details</button>
-                <button class="btn btn-success btn-small" type="button" onclick="approveBook('${book._id}')">Approve</button>
-                <button class="btn btn-danger btn-small" type="button" onclick="rejectBook('${book._id}')">Reject</button>
-              </div>
-            </div>
-            <div class="mobile-card-details">
-              <div class="mobile-kv"><div class="k">Genre</div><div class="v">${book.genre || '-'}</div></div>
-              <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
-                <img src="${fileUrl(book.coverImage)}" alt="${book.title || 'Cover'}"
-                     style="width:64px;height:80px;object-fit:cover;border-radius:10px;"
-                     onerror="this.onerror=null;this.src='https://via.placeholder.com/64x80?text=No+Cover'">
-                <div class="muted" style="font-size:0.9rem;">Tap Approve/Reject.</div>
-              </div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-    wireMobileToggles();
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Cover</th>
-            <th>Title</th>
-            <th>Author</th>
-            <th>Genre</th>
-            <th>Price</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${books.map(book => `
-            <tr>
-              <td>
-                <img src="${fileUrl(book.coverImage)}" alt="${book.title || 'Cover'}"
-                     style="width: 50px; height: 60px; object-fit: cover; border-radius: 8px;"
-                     onerror="this.onerror=null;this.src='https://via.placeholder.com/50x60?text=No+Cover'">
-              </td>
-              <td>${book.title || '-'}</td>
-              <td>${book.author?.name || 'Unknown'}</td>
-              <td>${book.genre || '-'}</td>
-              <td>$${Number(book.price || 0).toFixed(2)}</td>
-              <td>
-                <button class="btn btn-success btn-small" type="button" onclick="approveBook('${book._id}')">Approve</button>
-                <button class="btn btn-danger btn-small" type="button" onclick="rejectBook('${book._id}')">Reject</button>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-async function approveBook(bookId) {
-  try {
-    await adminAPI.updateBookStatus(bookId, 'approved');
-    alert('Book approved successfully');
-    loadAdminDashboard();
-  } catch (error) {
-    alert('Error approving book: ' + error.message);
-  }
-}
-
-async function rejectBook(bookId) {
-  if (!confirm('Are you sure you want to reject this book?')) return;
-
-  try {
-    await adminAPI.updateBookStatus(bookId, 'rejected');
-    alert('Book rejected');
-    loadAdminDashboard();
-  } catch (error) {
-    alert('Error rejecting book: ' + error.message);
-  }
 }
 
 async function blockAuthorPrompt(authorId) {

@@ -132,9 +132,9 @@
       const mobile = isMobileView();
 
       const statusBadge = (book) => {
-        const s = book.isDeleted ? 'Deleted' : (book.status ? (book.status.charAt(0).toUpperCase() + book.status.slice(1)) : 'Unknown');
-        const bg = book.isDeleted ? '#e2e3e5' : (book.status === 'approved' ? '#d4edda' : book.status === 'pending' ? '#fff3cd' : '#f8d7da');
-        const c = book.isDeleted ? '#6c757d' : (book.status === 'approved' ? '#155724' : book.status === 'pending' ? '#856404' : '#721c24');
+        const s = book.isDeleted ? 'Deleted' : 'Live';
+        const bg = book.isDeleted ? '#e2e3e5' : '#d4edda';
+        const c = book.isDeleted ? '#6c757d' : '#155724';
         return `<span class="badge" style="background:${bg};color:${c};">${s}</span>`;
       };
 
@@ -142,10 +142,8 @@
         container.innerHTML = `
           <h2>All Books</h2>
           <select id="book-status-filter" onchange="filterBooks()" style="margin-bottom: 1rem; padding: 0.6rem; min-height:44px;">
-            <option value="all" ${status==='all'?'selected':''}>All Status</option>
-            <option value="pending" ${status==='pending'?'selected':''}>Pending</option>
-            <option value="approved" ${status==='approved'?'selected':''}>Approved</option>
-            <option value="rejected" ${status==='rejected'?'selected':''}>Rejected</option>
+            <option value="all" ${status==='all'?'selected':''}>All</option>
+            <option value="deleted" ${status==='deleted'?'selected':''}>Deleted only</option>
           </select>
           <div class="mobile-cards">
             ${books.map(book => `
@@ -157,7 +155,6 @@
                   </div>
                   <div class="mobile-card-actions">
                     <button class="mobile-toggle" type="button">Details</button>
-                    ${!book.isDeleted && book.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="approveBook('${book._id}')">Approve</button><button class="btn btn-danger btn-small" onclick="rejectBook('${book._id}')">Reject</button>` : ''}
                     ${!book.isDeleted ? `<button class="btn btn-danger btn-small" onclick="adminDeleteBook('${book._id}')">Delete</button>` : ''}
                   </div>
                 </div>
@@ -177,10 +174,8 @@
         container.innerHTML = `
           <h2>All Books</h2>
           <select id="book-status-filter" onchange="filterBooks()" style="margin-bottom: 1rem; padding: 0.5rem;">
-            <option value="all" ${status==='all'?'selected':''}>All Status</option>
-            <option value="pending" ${status==='pending'?'selected':''}>Pending</option>
-            <option value="approved" ${status==='approved'?'selected':''}>Approved</option>
-            <option value="rejected" ${status==='rejected'?'selected':''}>Rejected</option>
+            <option value="all" ${status==='all'?'selected':''}>All</option>
+            <option value="deleted" ${status==='deleted'?'selected':''}>Deleted only</option>
           </select>
           <div class="table-wrap"><table>
             <thead><tr><th>Cover</th><th>Title</th><th>Author</th><th>Genre</th><th>Price</th><th>Status</th><th>Sales</th><th>Featured</th><th>Order</th><th>Actions</th></tr></thead>
@@ -197,7 +192,6 @@
                   <td><label style="display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="feat-${book._id}" ${book.isFeatured ? 'checked' : ''} onchange="updateFeatured('${book._id}')" /><span style="font-size:0.9rem;color:#555;">Featured</span></label></td>
                   <td><input type="number" min="0" step="1" id="featOrder-${book._id}" value="${Number(book.featuredOrder || 0)}" style="width:80px;padding:0.35rem;" onchange="updateFeatured('${book._id}')" /></td>
                   <td>
-                    ${!book.isDeleted && book.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="approveBook('${book._id}')">Approve</button><button class="btn btn-danger btn-small" onclick="rejectBook('${book._id}')">Reject</button>` : ''}
                     ${!book.isDeleted ? `<button class="btn btn-danger btn-small" onclick="adminDeleteBook('${book._id}')" style="margin-left:0.25rem;">Delete</button>` : ''}
                   </td>
                 </tr>
