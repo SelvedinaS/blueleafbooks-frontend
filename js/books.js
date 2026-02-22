@@ -1,10 +1,12 @@
 // Build a full file URL for cover/pdf paths coming from backend
 function fileUrl(path) {
-  if (!path) return '';
-  // If backend already returns full URL, keep it
-  if (/^https?:\/\//i.test(path)) return path;
+  if (path == null || path === '') return '';
+  const p = String(path).trim();
+  if (!p) return '';
+  // If backend already returns full URL, use as-is
+  if (/^https?:\/\//i.test(p)) return p;
   const base = (typeof FILE_BASE_URL !== 'undefined' ? FILE_BASE_URL : (window.FILE_BASE_URL || '')) || 'https://blueleafbooks-backend-geum.onrender.com';
-  return `${base.replace(/\/$/, '')}/${String(path).replace(/^\/+/, '')}`;
+  return `${base.replace(/\/$/, '')}/${p.replace(/^\/+/, '')}`;
 }
 
 // Display books in grid
@@ -17,8 +19,9 @@ function displayBooks(books, containerId) {
     return;
   }
 
+  const PLACEHOLDER = 'https://via.placeholder.com/250x300?text=No+Cover';
   container.innerHTML = books.map(book => {
-    const cover = fileUrl(book.coverImage);
+    const cover = fileUrl(book?.coverImage) || PLACEHOLDER;
     const title = book.title || 'Untitled';
     const authorName = book.author?.name || 'Unknown Author';
     const price = Number(book.price || 0).toFixed(2);
@@ -27,7 +30,7 @@ function displayBooks(books, containerId) {
 
     return `
       <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
-        <img src="${cover}" alt="${title}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://via.placeholder.com/250x300?text=No+Cover'">
+        <img src="${cover}" alt="${title}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
         <div class="book-card-content">
           <div class="book-card-title">${title}</div>
           <div class="book-card-author">${authorName}</div>
@@ -77,12 +80,13 @@ function displayBookDetails(book) {
   const hasPrice = !!(book.price && Number(book.price) > 0);
   const hasPdf = !!book.pdfFile;
 
-  const cover = fileUrl(book.coverImage);
+  const PLACEHOLDER = 'https://via.placeholder.com/300x400?text=No+Cover';
+  const cover = fileUrl(book?.coverImage) || PLACEHOLDER;
 
   container.innerHTML = `
     <div class="book-details">
       <div class="book-cover-wrap">
-        <img src="${cover}" alt="${book.title}" loading="eager" decoding="async" width="300" height="400" onerror="this.onerror=null;this.src='https://via.placeholder.com/300x400?text=No+Cover'">
+        <img src="${cover}" alt="${book.title}" loading="eager" decoding="async" width="300" height="400" onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
       </div>
       <div class="book-info">
         <h1>${book.title}</h1>
@@ -180,14 +184,15 @@ async function loadCuratedBooks() {
       return;
     }
 
+    const PLACEHOLDER = 'https://via.placeholder.com/250x300?text=No+Cover';
     container.innerHTML = books.map(book => {
-      const cover = fileUrl(book.coverImage);
+      const cover = fileUrl(book?.coverImage) || PLACEHOLDER;
       const title = book.title || 'Untitled';
       const authorName = book.author?.name || 'Unknown Author';
       const price = Number(book.price || 0).toFixed(2);
       return `
         <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
-          <img src="${cover}" alt="${title}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://via.placeholder.com/250x300?text=No+Cover'">
+          <img src="${cover}" alt="${title}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
           <div class="book-card-content">
             <div class="book-card-title">${title}</div>
             <div class="book-card-author">${authorName}</div>
