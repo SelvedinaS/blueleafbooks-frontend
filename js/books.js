@@ -46,7 +46,7 @@ function displayBooks(books, containerId) {
 
       return `
         <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
-          <img src="${cover}" alt="${title}" loading="lazy" decoding="async"
+          <img src="${cover}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
           <div class="book-card-content">
             <div class="book-card-title">${title}</div>
@@ -115,7 +115,7 @@ function displayBookDetails(book) {
   container.innerHTML = `
     <div class="book-details">
       <div class="book-cover-wrap">
-        <img src="${cover}" alt="${title}" loading="eager" decoding="async"
+        <img src="${cover}" alt="${title}" loading="eager" decoding="async" referrerpolicy="no-referrer"
              width="300" height="400"
              onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
       </div>
@@ -239,7 +239,7 @@ async function loadCuratedBooks() {
 
         return `
           <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
-            <img src="${cover}" alt="${title}" loading="lazy" decoding="async"
+            <img src="${cover}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                  onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
             <div class="book-card-content">
               <div class="book-card-title">${title}</div>
