@@ -682,6 +682,13 @@ function displayAdminDashboard(data) {
       </div>
     </div>
 
+    <div class="section-card" style="margin-bottom:1rem;">
+      <h3>Tools</h3>
+      <p style="margin-bottom:0.5rem;">Fix slike/PDF URL-ove (fral→fra1, geun→geum) u bazi.</p>
+      <button class="btn btn-secondary" type="button" onclick="fixBookUrls()">Fix Book URLs</button>
+      <span id="fix-urls-result" style="margin-left:0.5rem;"></span>
+    </div>
+
     <div class="section-card">
       <div class="section-header">
         <h2>Authors</h2>
@@ -802,6 +809,19 @@ async function unblockAuthor(authorId) {
     loadAdminDashboard();
   } catch (error) {
     alert('Error unblocking author: ' + error.message);
+  }
+}
+
+async function fixBookUrls() {
+  const resultEl = document.getElementById('fix-urls-result');
+  if (resultEl) resultEl.textContent = 'Running...';
+  try {
+    const r = await adminAPI.fixBookUrls();
+    if (resultEl) resultEl.textContent = r.message || 'Done!';
+    if (r.message) alert(r.message);
+  } catch (error) {
+    if (resultEl) resultEl.textContent = 'Error';
+    alert('Error: ' + (error.message || 'Unknown error'));
   }
 }
 

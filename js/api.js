@@ -303,5 +303,11 @@ const adminAPI = {
   deleteCoupon: (id) =>
     apiRequest(`/admin/coupons/${id}`, {
       method: 'DELETE'
+    }),
+
+  // One-time fix for fral→fra1, geun→geum in stored book URLs
+  fixBookUrls: () =>
+    apiRequest('/admin/fix-book-urls', {
+      method: 'POST'
     })
 };
