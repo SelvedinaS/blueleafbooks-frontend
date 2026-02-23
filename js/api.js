@@ -172,16 +172,35 @@ const ordersAPI = {
   getById: (id) => apiRequest(`/orders/${id}`)
 };
 
-// PayPal API
+// PayPal API - custom handler to preserve debug_id from error responses
+async function paypalRequest(endpoint, options = {}) {
+  const token = getAuthToken();
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (_) {}
+  if (!res.ok) {
+    const msg = (data && (data.message || data.error)) || text?.slice(0, 250) || `HTTP ${res.status}`;
+    const err = new Error(msg);
+    if (data && data.debug_id) err.debug_id = data.debug_id;
+    throw err;
+  }
+  return data;
+}
+
 const paypalAPI = {
   createOrder: (data) =>
-    apiRequest('/paypal/create-order', {
+    paypalRequest('/paypal/create-order', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
 
   captureOrder: (orderId) =>
-    apiRequest('/paypal/capture-order', {
+    paypalRequest('/paypal/capture-order', {
       method: 'POST',
       body: JSON.stringify({ orderId })
     })

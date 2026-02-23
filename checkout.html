@@ -243,6 +243,11 @@
       throw new Error('PayPal client-id is missing on the backend. Set PAYPAL_CLIENT_ID in Render/ENV and redeploy.');
     }
 
+    const isSandbox = data && data.isSandbox !== false;
+    if (!isSandbox && data && data.mode) {
+      console.log('PayPal mode:', data.mode, '- ensure client-id matches (sandbox app for sandbox)');
+    }
+
     // Avoid loading twice
     if (!document.getElementById('paypal-sdk')) {
       const script = document.createElement('script');
@@ -287,12 +292,22 @@ function renderPayPalButtons() {
         const res = await paypalAPI.createOrder(payload);
         return res.id || res.orderId;
       } catch (e) {
-        console.error('PayPal createOrder error:', e);
-        throw new Error(e.message || 'Error creating order.');
+        const msg = (e && e.message) ? e.message : 'Error creating order.';
+        const debugId = (e && e.debug_id) || '';
+        console.error('PayPal createOrder error:', msg, debugId ? 'debug_id=' + debugId : '');
+        throw new Error(debugId ? msg + ' [debug_id: ' + debugId + ']' : msg);
       }
     },
     onApprove: async (data) => {
-      const capture = await paypalAPI.captureOrder(data.orderID);
+      let capture;
+      try {
+        capture = await paypalAPI.captureOrder(data.orderID);
+      } catch (e) {
+        const msg = (e && e.message) ? e.message : 'Capture failed.';
+        const debugId = (e && e.debug_id) || '';
+        console.error('PayPal capture error:', msg, debugId ? 'debug_id=' + debugId : '');
+        throw new Error(debugId ? msg + ' [debug_id: ' + debugId + ']' : msg);
+      }
 
       const orderData = {
         items: cartBooks.map(book => ({ bookId: book._id })),
