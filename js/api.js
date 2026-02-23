@@ -172,24 +172,37 @@ const ordersAPI = {
   getById: (id) => apiRequest(`/orders/${id}`)
 };
 
-// PayPal API - custom handler to preserve debug_id from error responses
-async function paypalRequest(endpoint, options = {}) {
+// PayPal API - custom handler to preserve debug_id, with retry for Render cold start
+async function paypalRequest(endpoint, options = {}, retries = 2) {
   const token = getAuthToken();
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch (_) {}
-  if (!res.ok) {
-    const msg = (data && (data.message || data.error)) || text?.slice(0, 250) || `HTTP ${res.status}`;
-    const err = new Error(msg);
-    if (data && data.debug_id) err.debug_id = data.debug_id;
-    throw err;
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+      const text = await res.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch (_) {}
+      if (!res.ok) {
+        const msg = (data && (data.message || data.error)) || text?.slice(0, 250) || `HTTP ${res.status}`;
+        const err = new Error(msg);
+        if (data && data.debug_id) err.debug_id = data.debug_id;
+        throw err;
+      }
+      return data;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < retries && (e.message === 'Failed to fetch' || e.name === 'TypeError')) {
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw e;
+    }
   }
-  return data;
+  throw lastErr;
 }
 
 const paypalAPI = {

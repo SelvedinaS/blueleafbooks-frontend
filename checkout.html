@@ -115,6 +115,9 @@
           <div id="paypal-button-container" style="margin-top: 2rem; min-height: 50px;">
             <p class="loading" style="margin: 0;">Loading payment options...</p>
           </div>
+          <p id="checkout-backend-hint" style="margin-top:0.5rem; font-size:0.85rem; color:#666; display:none;">
+            If payment fails with "Failed to fetch", the server may be starting. <a href="https://blueleafbooks-backend-geum.onrender.com/api/health" target="_blank" rel="noopener">Open this link</a> to wake it up, then try again.
+          </p>
         `;
 
         initializePayPalOrTestMode();
@@ -329,6 +332,8 @@ function renderPayPalButtons() {
     onError: (err) => {
       console.error('PayPal error:', err);
       const msg = (err && err.message) ? err.message : 'Payment error. Please try again.';
+      const hint = document.getElementById('checkout-backend-hint');
+      if (hint && (msg.includes('Failed to fetch') || msg.includes('fetch'))) hint.style.display = 'block';
       container.innerHTML = `
         <p class="alert alert-error">${escapeHtml(msg)}</p>
         <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 0.5rem;">Try again</button>
