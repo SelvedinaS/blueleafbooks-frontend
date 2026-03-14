@@ -135,6 +135,13 @@ const booksAPI = {
 
   getCurated: (limit) => apiRequest(`/books/featured/curated${limit ? '?limit=' + encodeURIComponent(limit) : ''}`),
 
+  canRate: (id) => apiRequest(`/books/${id}/can-rate`),
+
+  rate: (id, rating) => apiRequest(`/books/${id}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ rating })
+  }),
+
   // IMPORTANT: formData endpoints (do NOT set Content-Type manually)
   create: async (formData) => {
     const token = getAuthToken();

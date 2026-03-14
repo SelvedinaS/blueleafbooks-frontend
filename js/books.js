@@ -83,7 +83,14 @@ async function loadBookDetails(bookId) {
       throw new Error('booksAPI.getById is not available. Make sure api.js is loaded before books.js');
     }
     const book = await booksAPI.getById(bookId);
-    displayBookDetails(book);
+    let ratingState = null;
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (user && user.role === 'customer' && booksAPI && typeof booksAPI.canRate === 'function') {
+      try {
+        ratingState = await booksAPI.canRate(bookId);
+      } catch (_) {}
+    }
+    displayBookDetails(book, ratingState);
   } catch (error) {
     console.error('Error loading book details:', error);
     const container = document.querySelector('.book-details-container');
@@ -91,63 +98,20 @@ async function loadBookDetails(bookId) {
   }
 }
 
-function displayBookDetails(book) {
-  const container = document.querySelector('.book-details-container');
-  if (!container) return;
-
-  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-  const isCustomer = !!(user && user.role === 'customer');
-
-  const hasPrice = !!(book?.price && Number(book.price) > 0);
-  const hasPdf = !!book?.pdfFile;
-
-  const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23e0e0e0' width='300' height='400'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='16'%3ENo Cover%3C/text%3E%3C/svg%3E";
-  const cover = safeFileUrl(book?.coverImage) || PLACEHOLDER;
-
-  const title = book?.title || 'Untitled';
-  const authorName = book?.author?.name || 'Unknown Author';
-  const price = Number(book?.price || 0).toFixed(2);
-  const rating = Math.floor(Number(book?.rating || 0));
-  const ratingCount = Number(book?.ratingCount || 0);
-  const description = book?.description || '';
-  const genre = book?.genre || '';
-
-  container.innerHTML = `
-    <div class="book-details">
-      <div class="book-cover-wrap">
-        <img src="${cover}" alt="${title}" loading="eager" decoding="async" referrerpolicy="no-referrer"
-             width="300" height="400"
-             onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
-      </div>
-
-      <div class="book-info">
-        <h1>${title}</h1>
-        <div class="author">By ${authorName}</div>
-        <div class="price">$${price}</div>
-        <div class="rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${ratingCount} reviews)</div>
-
-        <div class="description">
-          <h3>Description</h3>
-          <p>${description}</p>
-        </div>
-
-        <div class="genre"><strong>Genre:</strong> ${genre}</div>
-
-        ${
-          !hasPrice || !hasPdf
-            ? `<p class="alert alert-info">This book is not available for purchase at the moment.</p>`
-            : !user
-            ? `<p class="alert alert-info">Please <a href="login.html">login</a> to purchase this book.</p>`
-            : isCustomer
-            ? `
-                <button class="btn btn-primary" onclick="buyNow('${book._id}')" style="margin-right: 0.5rem;">Buy Now</button>
-                <button class="btn btn-secondary" onclick="addToCart('${book._id}')">Add to Cart</button>
-              `
-            : ''
-        }
-      </div>
-    </div>
-  `;
+async function submitBookRating(bookId, value) {
+  try {
+    await booksAPI.rate(bookId, value);
+    const [book, ratingState] = await Promise.all([
+      booksAPI.getById(bookId),
+      booksAPI.canRate(bookId)
+    ]);
+    ratingState.existingRating = value;
+    displayBookDetails(book, ratingState);
+    const msg = document.getElementById('book-rating-message');
+    if (msg) msg.textContent = `Your rating has been saved: ${value}/5`;
+  } catch (error) {
+    alert(error.message || 'Failed to save rating.');
+  }
 }
 
 /* =========================
