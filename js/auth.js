@@ -40,6 +40,16 @@ function updateNavigation() {
   const navLinks = document.querySelector('.nav-links');
   
   if (!navLinks) return;
+
+  // Show/hide the static For Authors link by role
+  const forAuthorsAnchor = navLinks.querySelector('a[href="for-authors.html"]');
+  const forAuthorsItem = forAuthorsAnchor ? forAuthorsAnchor.closest('li') : null;
+
+  if (forAuthorsItem) {
+    // Show for guests and authors, hide for customers and admins
+    const shouldHideForAuthorsLink = user && (user.role === 'customer' || user.role === 'admin');
+    forAuthorsItem.style.display = shouldHideForAuthorsLink ? 'none' : '';
+  }
   
   // Clear existing auth links
   const existingAuthLinks = navLinks.querySelectorAll('.auth-link');

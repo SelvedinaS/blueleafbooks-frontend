@@ -83,14 +83,7 @@ async function loadBookDetails(bookId) {
       throw new Error('booksAPI.getById is not available. Make sure api.js is loaded before books.js');
     }
     const book = await booksAPI.getById(bookId);
-    let ratingState = null;
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (user && user.role === 'customer' && booksAPI && typeof booksAPI.canRate === 'function') {
-      try {
-        ratingState = await booksAPI.canRate(bookId);
-      } catch (_) {}
-    }
-    displayBookDetails(book, ratingState);
+    displayBookDetails(book);
   } catch (error) {
     console.error('Error loading book details:', error);
     const container = document.querySelector('.book-details-container');
@@ -98,19 +91,171 @@ async function loadBookDetails(bookId) {
   }
 }
 
-async function submitBookRating(bookId, value) {
+function displayBookDetails(book) {
+  const container = document.querySelector('.book-details-container');
+  if (!container) return;
+
+  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  const isCustomer = !!(user && user.role === 'customer');
+
+  const hasPrice = !!(book?.price && Number(book.price) > 0);
+  const hasPdf = String(book?.status || 'approved') === 'approved';
+
+  const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23e0e0e0' width='300' height='400'/%3E%3Ctext fill='%23999' x='50%25' y='50%25' text-anchor='middle' dy='.3em' font-size='16'%3ENo Cover%3C/text%3E%3C/svg%3E";
+  const cover = safeFileUrl(book?.coverImage) || PLACEHOLDER;
+
+  const title = book?.title || 'Untitled';
+  const authorName = book?.author?.name || 'Unknown Author';
+  const price = Number(book?.price || 0).toFixed(2);
+  const rating = Math.round(Number(book?.rating || 0));
+  const ratingCount = Number(book?.ratingCount || 0);
+  const description = book?.description || '';
+  const genre = book?.genre || '';
+
+  container.innerHTML = `
+    <div class="book-details">
+      <div class="book-cover-wrap">
+        <img src="${cover}" alt="${title}" loading="eager" decoding="async" referrerpolicy="no-referrer"
+             width="300" height="400"
+             onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
+      </div>
+
+      <div class="book-info">
+        <h1>${title}</h1>
+        <div class="author">By ${authorName}</div>
+        <div class="price">$${price}</div>
+        <div class="rating" id="book-average-rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${ratingCount} reviews)</div>
+
+        <div class="description">
+          <h3>Description</h3>
+          <p>${description}</p>
+        </div>
+
+        <div class="genre"><strong>Genre:</strong> ${genre}</div>
+
+        ${
+          !hasPrice || !hasPdf
+            ? `<p class="alert alert-info">This book is not available for purchase at the moment.</p>`
+            : !user
+            ? `<p class="alert alert-info">Please <a href="login.html">login</a> to purchase this book.</p>`
+            : isCustomer
+            ? `
+                <button class="btn btn-primary" onclick="buyNow('${book._id}')" style="margin-right: 0.5rem;">Buy Now</button>
+                <button class="btn btn-secondary" onclick="addToCart('${book._id}')">Add to Cart</button>
+              `
+            : ''
+        }
+
+        <div id="book-rating-section" style="margin-top: 1.5rem;"></div>
+      </div>
+    </div>
+  `;
+
+  loadRatingSection(book);
+}
+
+async function loadRatingSection(book) {
+  const section = document.getElementById('book-rating-section');
+  if (!section || !book?._id) return;
+
+  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (!user) {
+    section.innerHTML = '<p class="alert alert-info">Log in as a customer to rate this book after purchase.</p>';
+    return;
+  }
+
+  if (user.role !== 'customer') {
+    section.innerHTML = '';
+    return;
+  }
+
   try {
-    await booksAPI.rate(bookId, value);
-    const [book, ratingState] = await Promise.all([
-      booksAPI.getById(bookId),
-      booksAPI.canRate(bookId)
-    ]);
-    ratingState.existingRating = value;
-    displayBookDetails(book, ratingState);
-    const msg = document.getElementById('book-rating-message');
-    if (msg) msg.textContent = `Your rating has been saved: ${value}/5`;
+    const status = await booksAPI.getRatingStatus(book._id);
+
+    if (!status?.canRate) {
+      section.innerHTML = `<p class="alert alert-info">${status?.message || 'Only customers who purchased this book can rate it.'}</p>`;
+      return;
+    }
+
+    const currentRating = Number(status?.existingRating || 0);
+    const helperText = currentRating
+      ? `Your current rating: ${currentRating}/5. Click another star to update it.`
+      : 'Rate this book:';
+
+    section.innerHTML = `
+      <div class="rating-panel" style="padding: 1rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; margin-top: 1rem;">
+        <h3 style="margin-bottom: 0.5rem;">Rate this book</h3>
+        <p id="rating-helper-text" style="margin-bottom: 0.75rem; color: #666;">${helperText}</p>
+        <div id="rating-stars" style="display: flex; gap: 0.35rem; flex-wrap: wrap;"></div>
+        <p id="rating-status-message" style="margin-top: 0.75rem;"></p>
+      </div>
+    `;
+
+    renderRatingStars(book._id, currentRating);
   } catch (error) {
-    alert(error.message || 'Failed to save rating.');
+    console.error('Error loading rating section:', error);
+    section.innerHTML = '<p class="alert alert-error">Unable to load rating options right now.</p>';
+  }
+}
+
+function renderRatingStars(bookId, selectedRating) {
+  const starsWrap = document.getElementById('rating-stars');
+  if (!starsWrap) return;
+
+  let html = '';
+  for (let i = 1; i <= 5; i += 1) {
+    const isActive = i <= selectedRating;
+    html += `
+      <button
+        type="button"
+        class="rating-star-btn"
+        data-rating="${i}"
+        aria-label="Rate ${i} star${i > 1 ? 's' : ''}"
+        style="border: 1px solid #d1d5db; background: ${isActive ? '#111827' : '#fff'}; color: ${isActive ? '#fff' : '#111827'}; border-radius: 10px; padding: 0.55rem 0.8rem; cursor: pointer; font-size: 1rem;"
+      >${'★'.repeat(i)}</button>
+    `;
+  }
+
+  starsWrap.innerHTML = html;
+
+  starsWrap.querySelectorAll('.rating-star-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const ratingValue = Number(btn.getAttribute('data-rating'));
+      await submitBookRating(bookId, ratingValue);
+    });
+  });
+}
+
+async function submitBookRating(bookId, ratingValue) {
+  const msg = document.getElementById('rating-status-message');
+  const helper = document.getElementById('rating-helper-text');
+  if (msg) msg.textContent = 'Saving your rating...';
+
+  try {
+    const result = await booksAPI.rateBook(bookId, ratingValue);
+    renderRatingStars(bookId, ratingValue);
+
+    if (helper) {
+      helper.textContent = `Your current rating: ${ratingValue}/5. Click another star to update it.`;
+    }
+
+    if (msg) {
+      msg.textContent = result?.message || 'Rating saved successfully.';
+      msg.style.color = '#166534';
+    }
+
+    const avg = document.getElementById('book-average-rating');
+    if (avg) {
+      const rounded = Math.round(Number(result?.rating || 0));
+      const count = Number(result?.ratingCount || 0);
+      avg.textContent = `${'★'.repeat(rounded)}${'☆'.repeat(5 - rounded)} (${count} reviews)`;
+    }
+  } catch (error) {
+    console.error('Error submitting rating:', error);
+    if (msg) {
+      msg.textContent = error.message || 'Failed to save rating.';
+      msg.style.color = '#b91c1c';
+    }
   }
 }
 
