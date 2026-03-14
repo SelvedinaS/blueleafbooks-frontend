@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>For Authors – BlueLeafBooks</title>
+  <meta name="description" content="Sell your digital books on BlueLeafBooks. Set your price, receive payments via PayPal, reach readers worldwide.">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="store.html">Store</a></li>
+        <li><a href="for-authors.html" class="active">For Authors</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="page-card">
+      <h1>For Authors</h1>
+      <p class="muted">Sell your digital books on BlueLeafBooks. Here’s how it works.</p>
+
+      <h2>1. Create an author account</h2>
+      <p>Register and choose <strong>Sell Books</strong>. You’ll get access to the Author Dashboard where you can upload and manage your books.</p>
+      <p><a href="register.html" class="btn btn-primary">Register as author</a></p>
+
+      <h2>2. Set your PayPal email</h2>
+      <p>Earnings are sent directly to your PayPal account. You must add your PayPal email in <strong>Dashboard → Payout Settings</strong> before you can publish any book.</p>
+
+      <h2>3. Upload your book</h2>
+      <p>From the dashboard, go to <strong>Upload Book</strong>. You’ll need:</p>
+      <ul>
+        <li>Title, description, genre, and price</li>
+        <li>Cover image (JPEG/PNG)</li>
+        <li>PDF file of the book</li>
+      </ul>
+      <p>Once submitted, your book goes live and appears in the store.</p>
+
+      <h2>4. Platform fee</h2>
+      <p>BlueLeafBooks charges a <strong>platform fee</strong> on your sales. The exact percentage is shown in your dashboard and in the <a href="terms.html">Terms & Conditions</a>. You pay this fee manually (e.g. monthly) as explained in your dashboard. Unpaid fees can lead to your account being restricted until the balance is settled.</p>
+
+      <h2>5. Payments</h2>
+      <p>When a reader buys your book, payment is processed via PayPal. You receive your share (after the platform fee) according to the schedule and method described in your dashboard and in the Terms.</p>
+
+      <h2>6. Rules and content</h2>
+      <p>You are responsible for the content you upload. You must own the rights or have permission to sell the work. Plagiarism and infringing content are not allowed. BlueLeafBooks may remove content that violates these rules. See our <a href="terms.html">Terms & Conditions</a> for full details.</p>
+
+      <h2>Ready to start?</h2>
+      <p><a href="register.html" class="btn btn-primary">Register</a> or <a href="login.html">Log in</a> if you already have an account.</p>
+    </div>
+  </div>
+
+  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="support.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
+        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
+        <a href="refund-policy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
+        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms & Conditions</a>
+      </p>
+    </div>
+  </footer>
+
+  <script src="./js/api.js?v=3"></script>
+  <script src="./js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (btn && nav) {
+        btn.addEventListener('click', () => {
+          nav.classList.toggle('open');
+          btn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -80,6 +80,31 @@ async function loadCustomerDashboard() {
   }
 }
 
+async function downloadBookPdf(bookId) {
+  const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL.replace(/\/api\/?$/, '') : '') || 'https://blueleafbooks-backend-geum.onrender.com';
+  const url = `${base}/api/books/${bookId}/download`;
+  const token = typeof getAuthToken === 'function' ? getAuthToken() : null;
+  if (!token) {
+    alert('Please log in to download.');
+    return;
+  }
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || res.statusText || 'Download failed');
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'book.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    alert(e.message || 'Download failed.');
+  }
+}
+
 function displayMyLibrary(orders) {
   const container = document.getElementById('dashboard-content');
   if (!container) return;
@@ -167,7 +192,7 @@ function displayMyLibrary(orders) {
             <div class="book-card-title">${book.title || '-'}</div>
             <div class="book-card-author">${book.author?.name || 'Unknown Author'}</div>
             <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0;">Purchased: ${book.purchaseDate ? new Date(book.purchaseDate).toLocaleDateString() : '-'}</p>
-            <a href="${fileUrl(book.pdfFile)}" class="btn btn-primary btn-small" download>Download PDF</a>
+            <button type="button" class="btn btn-primary btn-small" onclick="downloadBookPdf('${book._id}')">Download PDF</button>
           </div>
         </div>
       `).join('')}
