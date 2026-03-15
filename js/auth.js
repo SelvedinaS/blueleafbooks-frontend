@@ -41,15 +41,15 @@ function updateNavigation() {
   
   if (!navLinks) return;
 
-  // Show/hide the static For Authors link by role
-  const forAuthorsAnchor = navLinks.querySelector('a[href="for-authors.html"]');
-  const forAuthorsItem = forAuthorsAnchor ? forAuthorsAnchor.closest('li') : null;
-
-  if (forAuthorsItem) {
-    // Show for guests and authors, hide for customers and admins
-    const shouldHideForAuthorsLink = user && (user.role === 'customer' || user.role === 'admin');
-    forAuthorsItem.style.display = shouldHideForAuthorsLink ? 'none' : '';
-  }
+  // Show/hide any header links that point to the author onboarding page.
+  // Guests and authors can see them; customers and admins should not.
+  const shouldHideForAuthorsLink = !!(user && (user.role === 'customer' || user.role === 'admin'));
+  const forAuthorsAnchors = navLinks.querySelectorAll('a[href="for-authors.html"]');
+  forAuthorsAnchors.forEach(anchor => {
+    const item = anchor.closest('li');
+    if (item) item.style.display = shouldHideForAuthorsLink ? 'none' : '';
+    else anchor.style.display = shouldHideForAuthorsLink ? 'none' : '';
+  });
   
   // Clear existing auth links
   const existingAuthLinks = navLinks.querySelectorAll('.auth-link');
