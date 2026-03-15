@@ -97,6 +97,7 @@ function displayBookDetails(book) {
 
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   const isCustomer = !!(user && user.role === 'customer');
+  const token = typeof getAuthToken === 'function' ? getAuthToken() : null;
 
   const hasPrice = !!(book?.price && Number(book.price) > 0);
   const hasPdf = String(book?.status || 'approved') === 'approved';
@@ -146,13 +147,86 @@ function displayBookDetails(book) {
             : ''
         }
 
+        ${isCustomer && token ? `<div id="book-download-section" style="margin-top: 1rem;"></div>` : ''}
         <div id="book-rating-section" style="margin-top: 1.5rem;"></div>
       </div>
     </div>
   `;
 
+  loadPurchasedBookActions(book);
   loadRatingSection(book);
 }
+
+async function loadPurchasedBookActions(book) {
+  const section = document.getElementById('book-download-section');
+  if (!section || !book?._id) return;
+
+  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (!user || user.role !== 'customer') {
+    section.innerHTML = '';
+    return;
+  }
+
+  try {
+    const status = await booksAPI.getRatingStatus(book._id);
+    if (!status?.hasPurchased) {
+      section.innerHTML = '';
+      return;
+    }
+
+    section.innerHTML = `
+      <div class="alert alert-info" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+        <span>You purchased this book. You can download it and rate it below.</span>
+        <button type="button" class="btn btn-primary btn-small" onclick="downloadPurchasedBook('${book._id}')">Download PDF</button>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Error loading purchased book actions:', error);
+    section.innerHTML = '';
+  }
+}
+
+function downloadPurchasedBook(bookId) {
+  if (!bookId) return;
+  const token = typeof getAuthToken === 'function' ? getAuthToken() : null;
+  if (!token) {
+    alert('Please log in to download this book.');
+    return;
+  }
+
+  const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '').replace(/\/+$/, '');
+  const url = `${base}/books/${bookId}/download`;
+
+  fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        let message = 'Download failed.';
+        try {
+          const data = await res.json();
+          if (data?.message) message = data.message;
+        } catch (_) {}
+        throw new Error(message);
+      }
+      return res.blob();
+    })
+    .then((blob) => {
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = 'book.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    })
+    .catch((error) => {
+      console.error('Error downloading purchased book:', error);
+      alert(error.message || 'Download failed.');
+    });
+}
+
 
 async function loadRatingSection(book) {
   const section = document.getElementById('book-rating-section');

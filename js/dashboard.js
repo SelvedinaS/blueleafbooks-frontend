@@ -105,6 +105,11 @@ async function downloadBookPdf(bookId) {
   }
 }
 
+function openPurchasedBook(bookId) {
+  if (!bookId) return;
+  window.location.href = `book-details.html?id=${encodeURIComponent(bookId)}`;
+}
+
 function displayMyLibrary(orders) {
   const container = document.getElementById('dashboard-content');
   if (!container) return;
@@ -185,14 +190,17 @@ function displayMyLibrary(orders) {
     ${purchasedBooks.length === 0 ? '<p class="alert alert-info">No books in your library yet. <a href="store.html">Browse books</a></p>' : `
     <div class="books-grid">
       ${purchasedBooks.map(book => `
-        <div class="book-card">
+        <div class="book-card" onclick="openPurchasedBook('${book._id}')" style="cursor: pointer;">
           <img src="${fileUrl(book.coverImage)}" alt="${book.title || 'Book'}"
                onerror="this.onerror=null;this.src='https://via.placeholder.com/250x300?text=No+Cover'">
           <div class="book-card-content">
             <div class="book-card-title">${book.title || '-'}</div>
             <div class="book-card-author">${book.author?.name || 'Unknown Author'}</div>
             <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0;">Purchased: ${book.purchaseDate ? new Date(book.purchaseDate).toLocaleDateString() : '-'}</p>
-            <button type="button" class="btn btn-primary btn-small" onclick="downloadBookPdf('${book._id}')">Download PDF</button>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); openPurchasedBook('${book._id}')">Open & Rate</button>
+              <button type="button" class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadBookPdf('${book._id}')">Download PDF</button>
+            </div>
           </div>
         </div>
       `).join('')}
