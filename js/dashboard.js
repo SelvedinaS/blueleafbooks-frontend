@@ -246,10 +246,10 @@ async function displayAuthorDashboard(data) {
   const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
   const adminEmail = data.adminPaymentEmail || 'blueleafbooks@hotmail.com';
-  const isTrial = !!data.isInFirst30Days;
+  const isTrial = false;
 
-  const lastMonthFee = isTrial ? '$0.00' : money(data.lastMonth?.feeDue);
-  const currentMonthAccrued = isTrial ? '$0.00' : money(data.currentMonth?.feeAccrued);
+  const lastMonthFee = money(data.lastMonth?.feeDue);
+  const currentMonthAccrued = money(data.currentMonth?.feeAccrued);
 
   const lastMonthPeriod = data.lastMonth?.period || '-';
   const lastMonthDue = fmtDate(data.lastMonth?.dueDate);
@@ -288,11 +288,11 @@ async function displayAuthorDashboard(data) {
 
     <div class="section-card">
       <div class="section-header">
-        <h2>Platform Fee (10%)</h2>
+        <h2>Platform Fee (5%)</h2>
       </div>
 
       <p class="muted">
-        First 30 days are free. After that, the fee is calculated per calendar month.
+        BlueLeafBooks charges a fixed <strong>5%</strong> platform fee on each completed sale.
         You pay the <strong>previous month</strong> by the <strong>10th of the next month</strong>.
       </p>
 
@@ -303,14 +303,8 @@ async function displayAuthorDashboard(data) {
         </div>
 
         <div>
-          <div class="muted" style="font-size:0.9rem;">Trial status</div>
-          <div style="font-weight:800;">
-            ${
-              isTrial
-                ? `Free period: ${Number(data.daysUntilFee || 0)} day(s) left (ends ${fmtDate(data.trialEndsAt)})`
-                : `Trial ended on ${fmtDate(data.trialEndsAt)}`
-            }
-          </div>
+          <div class="muted" style="font-size:0.9rem;">Fee rate</div>
+          <div style="font-weight:800;">5% platform fee</div>
         </div>
       </div>
 
@@ -335,7 +329,7 @@ async function displayAuthorDashboard(data) {
             Period: ${currentMonthPeriod} · Due by: ${currentMonthDue}
           </div>
           <div class="muted" style="font-size:0.9rem; margin-top:0.35rem;">
-            Only sales after your trial ends are counted.
+            Current-month sales are being tracked and will be due next month.
           </div>
         </div>
       </div>
@@ -371,7 +365,7 @@ async function displayAuthorDashboard(data) {
         <h2>Monthly Reports</h2>
       </div>
       <p class="muted">
-        Download a PDF report of your monthly earnings, including each sale, platform fee (10%), and your net income.
+        Download a PDF report of your monthly earnings, including each sale, platform fee (5%), and your net income.
         This report is for your records and tax reporting.
       </p>
       <div id="author-reports-alert"></div>

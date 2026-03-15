@@ -239,18 +239,9 @@
       ]);
 
       const rows = (feeData && feeData.rows) ? feeData.rows : [];
-      const feePct = feeData && feeData.feePercentage ? feeData.feePercentage : 10;
+      const feePct = feeData && feeData.feePercentage ? feeData.feePercentage : 5;
 
-      // Split authors: new (first 30 days) vs old (fee applies)
-      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-      const nowDate = new Date();
-      const newMembers = [];
-      const oldMembers = [];
-      (authors || []).forEach(a => {
-        const created = a.createdAt ? new Date(a.createdAt) : null;
-        const isNew = created ? (nowDate - created < THIRTY_DAYS_MS) : false;
-        (isNew ? newMembers : oldMembers).push(a);
-      });
+      const allMembers = authors || [];
 
 
       container.innerHTML = `
@@ -275,13 +266,29 @@
 
           <div id="admin-fee-alert" style="margin-top:0.75rem;"></div>
 
+          <div style="margin-top:1rem; padding:0.85rem; background:#f8fbff; border:1px solid #d8e6ff; border-radius:8px;">
+            <h4 style="margin:0 0 0.5rem 0;">Manual Password Reset</h4>
+            <p style="color:#666; margin:0 0 0.75rem 0; font-size:0.95rem;">If a user forgets their password, set a new password here and send it to them manually.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+              <div class="form-group" style="max-width:280px;">
+                <label for="manual-reset-email">User email</label>
+                <input type="email" id="manual-reset-email" placeholder="user@email.com">
+              </div>
+              <div class="form-group" style="max-width:240px;">
+                <label for="manual-reset-password">New password</label>
+                <input type="text" id="manual-reset-password" placeholder="Enter new password">
+              </div>
+              <button class="btn btn-primary" onclick="manualResetPassword()">Set password</button>
+            </div>
+            <div id="manual-reset-alert" style="margin-top:0.75rem;"></div>
+          </div>
+
           <div style="overflow:auto; margin-top: 1rem;">
             <table>
               <thead>
                 <tr>
                   <th>Author</th>
                   <th>Billing day</th>
-                  <th>Trial left</th>
                   <th>Billing cycle</th>
                   <th>Due by</th>
                   <th>Gross sales</th>
@@ -300,57 +307,31 @@
         <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <h3 style="margin-bottom: 0.5rem;">Author Membership Groups</h3>
           <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
-            New members are in their first 30 days (no platform fee due yet). Old members are subject to the 10% platform fee.
+            All authors pay a fixed 5% platform fee on completed sales. Use this section to review author accounts and payment details.
           </p>
 
-          <div style="display:grid; grid-template-columns: 1fr; gap: 1rem;">
-            <div style="overflow:auto;">
-              <h4 style="margin:0.5rem 0;">New Members (First 30 Days) — ${newMembers.length}</h4>
-              <table>
-                <thead>
+          <div style="overflow:auto;">
+            <h4 style="margin:0.5rem 0;">All Authors — ${allMembers.length}</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Joined</th>
+                  <th>PayPal Set</th>
+                  <th>Blocked</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${allMembers.map(a => `
                   <tr>
-                    <th>Author</th>
-                    <th>Joined</th>
-                    <th>PayPal Set</th>
-                    <th>Blocked</th>
+                    <td><strong>${a.name}</strong><br/><span style="color:#666; font-size:0.9rem;">${a.email}</span></td>
+                    <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</td>
+                    <td>${a.payoutPaypalEmail ? '<span class="badge badge-success">YES</span>' : '<span class="badge badge-warning">NO</span>'}</td>
+                    <td>${a.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  ${newMembers.map(a => `
-                    <tr>
-                      <td><strong>${a.name}</strong><br/><span style="color:#666; font-size:0.9rem;">${a.email}</span></td>
-                      <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</td>
-                      <td>${a.payoutPaypalEmail ? '<span class="badge badge-success">YES</span>' : '<span class="badge badge-warning">NO</span>'}</td>
-                      <td>${a.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-
-            <div style="overflow:auto;">
-              <h4 style="margin:0.5rem 0;">Old Members (10% Fee Applies) — ${oldMembers.length}</h4>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Author</th>
-                    <th>Joined</th>
-                    <th>PayPal Set</th>
-                    <th>Blocked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${oldMembers.map(a => `
-                    <tr>
-                      <td><strong>${a.name}</strong><br/><span style="color:#666; font-size:0.9rem;">${a.email}</span></td>
-                      <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</td>
-                      <td>${a.payoutPaypalEmail ? '<span class="badge badge-success">YES</span>' : '<span class="badge badge-warning">NO</span>'}</td>
-                      <td>${a.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
+                `).join('')}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -449,7 +430,7 @@
               const periodKey = r.cycle?.key || '';
               const isPaid = !!r.status?.isPaid;
               const overdue = !!r.overdue;
-              const amountDue = r.isInTrial ? 0 : Number(r.cycle?.feeDue || 0);
+              const amountDue = Number(r.cycle?.feeDue || 0);
               return `<div class="mobile-card">
                 <div class="mobile-card-header">
                   <div><div class="mobile-card-title">${name}</div><div class="mobile-card-subtitle">$${amountDue.toFixed(2)} · ${isPaid ? 'PAID' : 'UNPAID'} ${overdue ? '· OVERDUE' : ''}</div></div>
@@ -482,12 +463,11 @@
             const periodKey = r.cycle?.key || '';
             const isPaid = !!r.status?.isPaid;
             const overdue = !!r.overdue;
-            const trialBadge = r.isInTrial ? `<span class="badge badge-info">TRIAL</span>` : `<span class="badge badge-success">ACTIVE</span>`;
-            const amountDue = r.isInTrial ? 0 : Number(r.cycle?.feeDue || 0);
+            const trialBadge = `<span class="badge badge-success">ACTIVE</span>`;
+            const amountDue = Number(r.cycle?.feeDue || 0);
             return `<tr>
               <td><strong>${name}</strong><br/><span style="color:#666;font-size:0.9rem;">${email}</span><br/>${trialBadge}</td>
               <td>${r.billingDay || '—'}</td>
-              <td>${r.isInTrial ? `${r.trialDaysRemaining || 0} day(s)` : '—'}</td>
               <td style="white-space:nowrap;">${fmtDate(r.cycle?.start)} – ${fmtDate(r.cycle?.end)}</td>
               <td style="white-space:nowrap;">${fmtDate(r.dueDate)}</td>
               <td>$${Number(r.cycle?.grossSales || 0).toFixed(2)}</td>
@@ -696,9 +676,9 @@
 
       const container = document.getElementById('dashboard-content');
       container.innerHTML = `
-        <h2>Platform Fees (Authors pay you 10%)</h2>
+        <h2>Platform Fees (Authors pay you 5%)</h2>
         <p class="alert alert-info">
-          Fee is calculated per calendar month (after the first 30 days). Payment deadline is the <strong>10th</strong> of the next month.
+          Fee is calculated per calendar month at a fixed <strong>5%</strong>. Payment deadline is the <strong>10th</strong> of the next month.
           Payment email: <strong>blueleafbooks@hotmail.com</strong>
         </p>
 
@@ -708,7 +688,6 @@
           <button class="btn btn-primary btn-small" onclick="refreshPlatformFees()">Load</button>
         </div>
 
-        <div id="trial-authors-box" style="margin-bottom:1.25rem;"></div>
         <div id="fees-table-box"></div>
       `;
 
@@ -723,39 +702,6 @@
         adminAPI.getAllAuthors(),
         adminAPI.getFeeStatus(period)
       ]);
-
-      // Trial authors list
-      const trialAuthors = (authors || []).filter(a => a.isInFirst30Days);
-      const trialBox = document.getElementById('trial-authors-box');
-      if (trialBox) {
-        trialBox.innerHTML = trialAuthors.length
-          ? `
-            <h3 style="margin-bottom:0.5rem;">New Members (Free trial)</h3>
-            <div style="overflow:auto; background:var(--white); border:1px solid var(--border-color); border-radius:8px;">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Author</th>
-                    <th>Email</th>
-                    <th>Trial ends</th>
-                    <th>Days left</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${trialAuthors.map(a => `
-                    <tr>
-                      <td>${a.name || '—'}</td>
-                      <td>${a.email || '—'}</td>
-                      <td>${a.trialEndsAt ? new Date(a.trialEndsAt).toLocaleDateString() : '—'}</td>
-                      <td>${a.daysUntilFee || 0}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          `
-          : '';
-      }
 
       // Fees table
       const box = document.getElementById('fees-table-box');
@@ -790,7 +736,7 @@
         <h3 style="margin-bottom:0.5rem;">Fee report for ${feeReport?.period || period} (Due by ${dueDate})</h3>
         <div style="overflow:auto; background:var(--white); border:1px solid var(--border-color); border-radius:8px;">
           <table>
-            <thead><tr><th>Author</th><th>Email</th><th>PayPal</th><th>Gross Sales</th><th>Fee Due (10%)</th><th>Status</th><th>Overdue</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Author</th><th>Email</th><th>PayPal</th><th>Gross Sales</th><th>Fee Due (5%)</th><th>Status</th><th>Overdue</th><th>Actions</th></tr></thead>
             <tbody>
               ${rows.length === 0 ? '<tr><td colspan="8">No data</td></tr>' : rows.map(r => `
                 <tr>
@@ -805,6 +751,23 @@
           </table>
         </div>
       `;
+      }
+    }
+
+
+    async function manualResetPassword() {
+      const alertBox = document.getElementById('manual-reset-alert');
+      const email = document.getElementById('manual-reset-email')?.value?.trim();
+      const newPassword = document.getElementById('manual-reset-password')?.value?.trim();
+      if (!email || !newPassword) {
+        if (alertBox) alertBox.innerHTML = '<div class="alert alert-error">Enter user email and a new password.</div>';
+        return;
+      }
+      try {
+        const result = await adminAPI.resetUserPassword(email, newPassword);
+        if (alertBox) alertBox.innerHTML = `<div class="alert alert-success">Password updated for <strong>${result.user?.email || email}</strong>. Send this password to the user manually.</div>`;
+      } catch (e) {
+        if (alertBox) alertBox.innerHTML = `<div class="alert alert-error">${e.message || 'Password reset failed'}</div>`;
       }
     }
 

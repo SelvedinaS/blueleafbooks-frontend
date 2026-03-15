@@ -314,6 +314,12 @@ const adminAPI = {
       method: 'PATCH'
     }),
 
+  resetUserPassword: (email, newPassword) =>
+    apiRequest('/admin/users/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, newPassword })
+    }),
+
   getAllOrders: () => apiRequest('/admin/orders'),
 
   getEarnings: () => apiRequest('/admin/earnings'),
