@@ -47,15 +47,29 @@
       return String(name || "book").replace(/[^a-z0-9]/gi, "_");
     }
 
-    function buildFileUrl(fileValue) {
-      // Ako je već full URL (npr. Cloudinary) -> vrati kako jeste
-      if (!fileValue) return null;
-      if (/^https?:\/\//i.test(fileValue)) return fileValue;
+    async function downloadProtectedPdf() {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('Please login to download your purchase.');
+      }
 
-      // Ako je relative path -> sklopi sa backend domenom
-      const clean = String(fileValue).replace(/^\/+/, "");
-      const base = API_BASE_URL.replace(/\/api\/?$/, ""); // https://...onrender.com
-      return `${base}/${clean}`;
+      const response = await fetch(`${API_BASE_URL}/books/${bookId}/download`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        let message = 'Download failed.';
+        try {
+          const data = await response.json();
+          message = data.message || message;
+        } catch (_) {}
+        throw new Error(message);
+      }
+
+      return response.blob();
     }
 
     async function startDownload() {
@@ -68,38 +82,24 @@
         return;
       }
 
+      if (!isAuthenticated()) {
+        alert('Please login to download your purchase.');
+        window.location.href = 'login.html';
+        return;
+      }
+
       try {
-        // provjera login-a
-        if (!isAuthenticated()) {
-          alert('Please login to download your purchase.');
-          window.location.href = 'login.html';
-          return;
-        }
-
         statusEl.textContent = 'Preparing your download...';
-
         const book = await booksAPI.getById(bookId);
+        const fileName = `${escapeFileName(book?.title || 'book')}.pdf`;
+        const blob = await downloadProtectedPdf();
+        const downloadUrl = URL.createObjectURL(blob);
 
-        if (!book || !book.pdfFile) {
-          container.innerHTML = '<p class="alert alert-error">Book file not found. Please contact support.</p>';
-          return;
-        }
-
-        const pdfUrl = buildFileUrl(book.pdfFile);
-        if (!pdfUrl) {
-          container.innerHTML = '<p class="alert alert-error">Invalid PDF link. Please contact support.</p>';
-          return;
-        }
-
-        const fileName = `${escapeFileName(book.title)}.pdf`;
-
-        // manual link
-        manualLink.href = pdfUrl;
+        manualLink.href = downloadUrl;
         manualLink.setAttribute('download', fileName);
 
-        // auto download
         const a = document.createElement('a');
-        a.href = pdfUrl;
+        a.href = downloadUrl;
         a.setAttribute('download', fileName);
         a.style.display = 'none';
         document.body.appendChild(a);
@@ -109,13 +109,21 @@
         statusEl.textContent = 'If your download did not start, use the button above.';
       } catch (err) {
         console.error('Download error:', err);
-        document.getElementById('download-status').textContent = '';
-        document.querySelector('.container').innerHTML =
-          '<p class="alert alert-error">Error downloading book. Please try again or contact support.</p>';
+        statusEl.textContent = '';
+        container.innerHTML = `<p class="alert alert-error">${err.message || 'Error downloading book. Please try again or contact support.'}</p>`;
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      const manualLink = document.getElementById('manual-link');
+      if (manualLink) {
+        manualLink.addEventListener('click', async (e) => {
+          if (manualLink.getAttribute('href') === '#') {
+            e.preventDefault();
+            await startDownload();
+          }
+        });
+      }
       startDownload();
     });
   </script>
