@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
   <title>BlueLeafBooks – Digital Book Marketplace</title>
-  <meta name="description" content="Discover and buy digital books from independent authors. Sell your own books as an author. Secure downloads, PayPal checkout.">
+  <meta name="description" content="Discover and buy digital books from independent authors. Sell your own PDF books with only 5% platform fee.">
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -31,6 +31,20 @@
   </div>
 
   <div class="container">
+
+    <section class="section" style="background:#f8fbff;padding:1.5rem;border-radius:14px;border:1px solid #dbe8f4;">
+      <h2 class="section-title" style="margin-bottom:1rem;">For Authors</h2>
+      <p><strong>Sell your PDF books on BlueLeafBooks with only 5% platform fee.</strong></p>
+      <p>Get paid directly to your PayPal, keep full rights to your work, and manage your books from your author dashboard.</p>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1rem;">
+        <span style="background:#fff;border:1px solid #dbe8f4;border-radius:999px;padding:0.45rem 0.9rem;">Only 5% fee</span>
+        <span style="background:#fff;border:1px solid #dbe8f4;border-radius:999px;padding:0.45rem 0.9rem;">Direct PayPal payments</span>
+        <span style="background:#fff;border:1px solid #dbe8f4;border-radius:999px;padding:0.45rem 0.9rem;">Keep your rights</span>
+      </div>
+      <p style="margin-top:1rem;">
+        <a href="for-authors.html" class="btn btn-primary">Start Selling</a>
+      </p>
+    </section>
 
     <section class="section">
       <h2 class="section-title">Featured Picks</h2>
@@ -121,7 +135,7 @@
       }
 
       loadCurated();
-    loadBestsellers();
+      loadBestsellers();
       loadNewBooks();
       loadCategories();
     });
