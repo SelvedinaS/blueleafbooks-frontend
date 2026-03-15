@@ -463,10 +463,10 @@
             const periodKey = r.cycle?.key || '';
             const isPaid = !!r.status?.isPaid;
             const overdue = !!r.overdue;
-            const trialBadge = `<span class="badge badge-success">ACTIVE</span>`;
+            const accountBadge = ''; 
             const amountDue = Number(r.cycle?.feeDue || 0);
             return `<tr>
-              <td><strong>${name}</strong><br/><span style="color:#666;font-size:0.9rem;">${email}</span><br/>${trialBadge}</td>
+              <td><strong>${name}</strong><br/><span style="color:#666;font-size:0.9rem;">${email}</span>${accountBadge}</td>
               <td>${r.billingDay || '—'}</td>
               <td style="white-space:nowrap;">${fmtDate(r.cycle?.start)} – ${fmtDate(r.cycle?.end)}</td>
               <td style="white-space:nowrap;">${fmtDate(r.dueDate)}</td>
