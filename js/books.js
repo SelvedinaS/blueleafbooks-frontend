@@ -43,16 +43,25 @@ function displayBooks(books, containerId) {
       const price = Number(book?.price || 0).toFixed(2);
       const rating = Math.floor(Number(book?.rating || 0));
       const ratingCount = Number(book?.ratingCount || 0);
+      const salesCount = Number(book?.salesCount || 0);
+      const createdAt = book?.createdAt ? new Date(book.createdAt) : null;
+      const daysOld = createdAt ? Math.floor((Date.now() - createdAt.getTime()) / 86400000) : null;
+      const badges = [];
+      if (salesCount >= 1) badges.push('<span class="badge badge-success">Bestseller</span>');
+      if (ratingCount >= 3 && Number(book?.rating || 0) >= 4) badges.push('<span class="badge badge-warning">Top Rated</span>');
+      if (daysOld !== null && daysOld <= 14) badges.push('<span class="badge" style="background:#e0f2fe;color:#075985;">New</span>');
 
       return `
         <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
           <img src="${cover}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
           <div class="book-card-content">
+            <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:0.45rem;">${badges.join('')}</div>
             <div class="book-card-title">${title}</div>
             <div class="book-card-author">${authorName}</div>
             <div class="book-card-price">$${price}</div>
             <div class="book-card-rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${ratingCount})</div>
+            <div style="font-size:0.9rem;color:#666;margin-top:0.35rem;">Sold ${salesCount} time${salesCount === 1 ? '' : 's'}</div>
           </div>
         </div>
       `;
@@ -112,6 +121,9 @@ function displayBookDetails(book) {
   const ratingCount = Number(book?.ratingCount || 0);
   const description = book?.description || '';
   const genre = book?.genre || '';
+  const salesCount = Number(book?.salesCount || 0);
+  const isBestseller = salesCount >= 1;
+  const isTopRated = ratingCount >= 3 && Number(book?.rating || 0) >= 4;
 
   container.innerHTML = `
     <div class="book-details">
@@ -124,8 +136,13 @@ function displayBookDetails(book) {
       <div class="book-info">
         <h1>${title}</h1>
         <div class="author">By ${authorName}</div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin:0.5rem 0 0.2rem;">
+          ${isBestseller ? '<span class="badge badge-success">Bestseller</span>' : ''}
+          ${isTopRated ? '<span class="badge badge-warning">Top Rated</span>' : ''}
+        </div>
         <div class="price">$${price}</div>
         <div class="rating" id="book-average-rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${ratingCount} reviews)</div>
+        <div class="muted" style="margin-top:0.35rem;">Sold ${salesCount} time${salesCount === 1 ? '' : 's'}</div>
 
         <div class="description">
           <h3>Description</h3>

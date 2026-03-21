@@ -267,6 +267,9 @@ async function displayAuthorDashboard(data) {
   const currentMonthPeriod = data.currentMonth?.period || '-';
   const currentMonthDue = fmtDate(data.currentMonth?.dueDate);
 
+  const topBook = data.topBook || null;
+  const topRatedBook = data.topRatedBook || null;
+
   container.innerHTML = `
     <div class="section-header">
       <div>
@@ -291,6 +294,16 @@ async function displayAuthorDashboard(data) {
       <div class="kpi">
         <div class="label">Unpaid Earnings</div>
         <div class="value">${money(data.unpaidEarnings)}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Best-Selling Book</div>
+        <div class="value" style="font-size:1.1rem;line-height:1.3;">${topBook ? topBook.title : 'No sales yet'}</div>
+        <div class="muted" style="margin-top:0.35rem;">${topBook ? `${Number(topBook.salesCount || 0)} sale${Number(topBook.salesCount || 0) === 1 ? '' : 's'}` : 'Your top seller will appear here.'}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Top-Rated Book</div>
+        <div class="value" style="font-size:1.1rem;line-height:1.3;">${topRatedBook ? topRatedBook.title : 'No ratings yet'}</div>
+        <div class="muted" style="margin-top:0.35rem;">${topRatedBook ? `${Number(topRatedBook.rating || 0).toFixed(1)}/5 from ${Number(topRatedBook.ratingCount || 0)} review${Number(topRatedBook.ratingCount || 0) === 1 ? '' : 's'}` : 'Your highest rated book will appear here.'}</div>
       </div>
     </div>
 
@@ -339,6 +352,24 @@ async function displayAuthorDashboard(data) {
           <div class="muted" style="font-size:0.9rem; margin-top:0.35rem;">
             Current-month sales are being tracked and will be due next month.
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Performance Highlights</h2>
+      </div>
+      <div class="fee-grid">
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Top seller</div>
+          <div class="fee-amount" style="font-size:1.4rem;">${topBook ? topBook.title : 'No sales yet'}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">${topBook ? `Sold ${Number(topBook.salesCount || 0)} time${Number(topBook.salesCount || 0) === 1 ? '' : 's'}` : 'Once you make sales, your bestseller appears here.'}</div>
+        </div>
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Top rated</div>
+          <div class="fee-amount" style="font-size:1.4rem;">${topRatedBook ? topRatedBook.title : 'No ratings yet'}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">${topRatedBook ? `${Number(topRatedBook.rating || 0).toFixed(1)}/5 from ${Number(topRatedBook.ratingCount || 0)} review${Number(topRatedBook.ratingCount || 0) === 1 ? '' : 's'}` : 'Customer ratings will appear here.'}</div>
         </div>
       </div>
     </div>
@@ -692,6 +723,14 @@ function displayAdminDashboard(data) {
 
   const booksArr = Array.isArray(data.books) ? data.books : [];
   const authorsArr = Array.isArray(data.authors) ? data.authors : [];
+  const topBooks = [...booksArr]
+    .filter(book => !book.isDeleted)
+    .sort((a, b) => (Number(b.salesCount || 0) - Number(a.salesCount || 0)) || (Number(b.rating || 0) - Number(a.rating || 0)))
+    .slice(0, 5);
+  const topRatedBooks = [...booksArr]
+    .filter(book => !book.isDeleted && Number(book.ratingCount || 0) > 0)
+    .sort((a, b) => (Number(b.rating || 0) - Number(a.rating || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0)) || (Number(b.salesCount || 0) - Number(a.salesCount || 0)))
+    .slice(0, 5);
 
   container.innerHTML = `
     <div class="stats-grid">
@@ -706,6 +745,20 @@ function displayAdminDashboard(data) {
       <div class="stat-card">
         <h3>Platform Earnings</h3>
         <div class="value">$${Number(data.earnings?.totalEarnings || 0).toFixed(2)}</div>
+      </div>
+    </div>
+
+    <div class="section-card" style="margin-bottom:1rem;">
+      <h3>Sales Highlights</h3>
+      <div class="fee-grid">
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Best-selling books</div>
+          ${topBooks.length ? topBooks.map((book, index) => `<div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.45rem 0;border-bottom:${index === topBooks.length - 1 ? '0' : '1px solid #eef2f7'};"><span>${index + 1}. ${book.title}</span><strong>${Number(book.salesCount || 0)} sales</strong></div>`).join('') : '<div class="muted" style="margin-top:0.4rem;">No sales yet.</div>'}
+        </div>
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Top-rated books</div>
+          ${topRatedBooks.length ? topRatedBooks.map((book, index) => `<div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.45rem 0;border-bottom:${index === topRatedBooks.length - 1 ? '0' : '1px solid #eef2f7'};"><span>${index + 1}. ${book.title}</span><strong>${Number(book.rating || 0).toFixed(1)}/5</strong></div>`).join('') : '<div class="muted" style="margin-top:0.4rem;">No ratings yet.</div>'}
+        </div>
       </div>
     </div>
 

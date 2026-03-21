@@ -59,6 +59,11 @@
     </section>
 
     <section class="section">
+      <h2 class="section-title">Top Rated</h2>
+      <div id="top-rated-books" class="books-grid"></div>
+    </section>
+
+    <section class="section">
       <h2 class="section-title">Browse by Category</h2>
       <div id="categories" style="display: flex; gap: 1rem; flex-wrap: wrap;"></div>
     </section>
@@ -104,6 +109,16 @@
       }
     }
 
+    async function loadTopRatedBooks() {
+      try {
+        const books = await booksAPI.getAll({ sortBy: 'rating', order: 'desc' });
+        displayBooks((books || []).slice(0, 8), 'top-rated-books');
+      } catch (error) {
+        console.error('Error loading top rated books:', error);
+        showEmpty('top-rated-books', "Couldn’t load top rated books right now.");
+      }
+    }
+
     async function loadCategories() {
       try {
         const genres = await booksAPI.getGenres();
@@ -134,6 +149,7 @@
       loadCurated();
       loadBestsellers();
       loadNewBooks();
+      loadTopRatedBooks();
       loadCategories();
     });
   </script>
