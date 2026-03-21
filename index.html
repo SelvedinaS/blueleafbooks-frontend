@@ -71,6 +71,7 @@
 
   <script src="./js/api.js?v=3"></script>
   <script src="./js/auth.js"></script>
+  <script src="./js/bookGenres.js?v=1"></script>
   <script src="./js/books.js?v=3"></script>
 
   <script>
@@ -121,7 +122,14 @@
 
     async function loadCategories() {
       try {
-        const genres = await booksAPI.getGenres();
+        let genres = [];
+        if (booksAPI && typeof booksAPI.getGenres === 'function') {
+          genres = await booksAPI.getGenres();
+        }
+        if ((!Array.isArray(genres) || !genres.length) && typeof getBookGenres === 'function') {
+          genres = getBookGenres();
+        }
+
         const container = document.getElementById('categories');
         container.innerHTML = (genres || []).map(genre => `
           <a href="store.html?genre=${encodeURIComponent(genre)}" class="btn btn-secondary">

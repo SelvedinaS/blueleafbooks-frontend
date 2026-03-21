@@ -50,7 +50,10 @@
 
         <div class="form-group">
           <label for="genre">Genre</label>
-          <input type="text" id="genre" name="genre" required placeholder="e.g., Fiction, Science Fiction, Mystery">
+          <select id="genre" name="genre" required>
+            <option value="">Choose a category</option>
+          </select>
+          <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">Choose one professional category from the list.</p>
         </div>
 
         <div class="form-group">
@@ -75,6 +78,7 @@
 
   <script src="./js/api.js?v=3"></script>
   <script src="./js/auth.js"></script>
+  <script src="./js/bookGenres.js?v=1"></script>
   <script src="./js/books.js?v=3"></script>
   <script>
     requireAuth();
@@ -92,12 +96,23 @@
       const bookId = urlParams.get('id');
       const isEditMode = !!bookId;
 
+      populateGenreOptions();
       loadPaypalSettings();
       document.getElementById('save-paypal-btn').addEventListener('click', savePaypalSettings);
 
       if (isEditMode) {
         document.getElementById('form-title').textContent = 'Edit Book';
         loadBookForEdit(bookId);
+      }
+
+
+      function populateGenreOptions(selectedValue = '') {
+        const select = document.getElementById('genre');
+        if (!select) return;
+        const genres = typeof getBookGenres === 'function' ? getBookGenres() : [];
+        select.innerHTML = '<option value="">Choose a category</option>' + genres.map((genre) => `
+          <option value="${genre}" ${genre === selectedValue ? 'selected' : ''}>${genre}</option>
+        `).join('');
       }
 
       async function loadPaypalSettings() {
@@ -153,7 +168,7 @@
           const book = await booksAPI.getById(id);
           document.getElementById('title').value = book.title;
           document.getElementById('description').value = book.description;
-          document.getElementById('genre').value = book.genre;
+          populateGenreOptions(book.genre);
           document.getElementById('price').value = book.price;
         } catch (error) {
           alert('Error loading book: ' + error.message);

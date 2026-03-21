@@ -52,6 +52,7 @@
 
   <script src="./js/api.js?v=3"></script>
   <script src="./js/auth.js"></script>
+  <script src="./js/bookGenres.js?v=1"></script>
   <script src="./js/books.js?v=3"></script>
   <script>
     function showStoreError(message) {
@@ -107,7 +108,7 @@
       }
       try {
         // Load genres AFTER DOM is ready
-        loadGenres();
+        await loadGenres();
 
         // URL param genre
         const urlParams = new URLSearchParams(window.location.search);

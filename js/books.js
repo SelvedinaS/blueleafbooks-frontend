@@ -393,15 +393,23 @@ function updateCartCount() {
 ========================= */
 async function loadGenres() {
   try {
-    if (!booksAPI || typeof booksAPI.getGenres !== 'function') return;
-
-    const genres = await booksAPI.getGenres();
     const select = document.getElementById('genre-filter');
     if (!select) return;
 
+    let genres = [];
+    if (booksAPI && typeof booksAPI.getGenres === 'function') {
+      genres = await booksAPI.getGenres();
+    }
+
+    if ((!Array.isArray(genres) || !genres.length) && typeof getBookGenres === 'function') {
+      genres = getBookGenres();
+    }
+
     select.innerHTML =
       '<option value="">All Genres</option>' +
-      (Array.isArray(genres) ? genres.map((g) => `<option value="${g}">${g}</option>`).join('') : '');
+      (Array.isArray(genres)
+        ? genres.map((g) => `<option value="${String(g).replace(/"/g, '&quot;')}">${g}</option>`).join('')
+        : '');
   } catch (error) {
     console.error('Error loading genres:', error);
   }
