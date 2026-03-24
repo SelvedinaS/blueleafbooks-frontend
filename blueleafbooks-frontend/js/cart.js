@@ -12,7 +12,7 @@ async function loadCart() {
 
   if (cart.length === 0) {
     document.getElementById('cart-items').innerHTML =
-      '<p class="alert alert-info">Your cart is empty. <a href="store.html">Browse books</a></p>';
+      '<p class="alert alert-info">Your cart is empty. <a href="/store">Browse books</a></p>';
     document.getElementById('cart-summary').style.display = 'none';
     currentCartBooks = [];
     return;
@@ -37,7 +37,7 @@ async function loadCart() {
       localStorage.setItem('cart', JSON.stringify([]));
       currentCartBooks = [];
       document.getElementById('cart-items').innerHTML =
-        '<p class="alert alert-info">Your cart is empty (items were removed or no longer available). <a href="store.html">Browse books</a></p>';
+        '<p class="alert alert-info">Your cart is empty (items were removed or no longer available). <a href="/store">Browse books</a></p>';
       document.getElementById('cart-summary').style.display = 'none';
       updateCartCount();
       return;
@@ -114,16 +114,16 @@ function proceedToCheckout() {
 
   if (!isAuthenticated()) {
     alert('Please login to checkout');
-    window.location.href = 'login.html';
+    window.location.href = '/login';
     return;
   }
 
-  window.location.href = 'checkout.html';
+  window.location.href = '/checkout';
 }
 
 // Initialize cart on page load
 document.addEventListener('DOMContentLoaded', () => {
-  // Netlify/redirects sometimes serve pretty URLs (e.g. /cart instead of /cart.html).
+  // Netlify/redirects sometimes serve pretty URLs (e.g. /cart instead of //cart).
   // So we initialize the cart whenever the cart container exists.
   if (document.getElementById('cart-items')) {
     loadCart();

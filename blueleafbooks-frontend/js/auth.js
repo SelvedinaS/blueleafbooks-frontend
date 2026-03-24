@@ -10,7 +10,7 @@ function hasRole(role) {
 }
 
 // Redirect if not authenticated
-function requireAuth(redirectTo = 'login.html') {
+function requireAuth(redirectTo = '/login') {
   if (!isAuthenticated()) {
     window.location.href = redirectTo;
     return false;
@@ -19,7 +19,7 @@ function requireAuth(redirectTo = 'login.html') {
 }
 
 // Redirect if not specific role
-function requireRole(role, redirectTo = 'index.html') {
+function requireRole(role, redirectTo = '/') {
   if (!hasRole(role)) {
     window.location.href = redirectTo;
     return false;
@@ -31,7 +31,7 @@ function requireRole(role, redirectTo = 'index.html') {
 function logout() {
   removeAuthToken();
   removeCurrentUser();
-  window.location.href = 'index.html';
+  window.location.href = '/';
 }
 
 // Update navigation based on auth status
@@ -44,7 +44,7 @@ function updateNavigation() {
   // Show/hide any header links that point to the author onboarding page.
   // Guests and authors can see them; customers and admins should not.
   const shouldHideForAuthorsLink = !!(user && (user.role === 'customer' || user.role === 'admin'));
-  const forAuthorsAnchors = navLinks.querySelectorAll('a[href="for-authors.html"]');
+  const forAuthorsAnchors = navLinks.querySelectorAll('a[href="/for-authors"]');
   forAuthorsAnchors.forEach(anchor => {
     const item = anchor.closest('li');
     if (item) item.style.display = shouldHideForAuthorsLink ? 'none' : '';
@@ -62,11 +62,11 @@ function updateNavigation() {
     
     let dashboardLink = '';
     if (user.role === 'customer') {
-      dashboardLink = '<a href="customer-dashboard.html">My Library</a>';
+      dashboardLink = '<a href="/customer-dashboard">My Library</a>';
     } else if (user.role === 'author') {
-      dashboardLink = '<a href="author-dashboard.html">Author Dashboard</a>';
+      dashboardLink = '<a href="/author-dashboard">Author Dashboard</a>';
     } else if (user.role === 'admin') {
-      dashboardLink = '<a href="admin-dashboard.html">Admin Dashboard</a>';
+      dashboardLink = '<a href="/admin-dashboard">Admin Dashboard</a>';
     }
     
     userMenu.innerHTML = `
@@ -80,11 +80,11 @@ function updateNavigation() {
     // User is not logged in
     const loginLink = document.createElement('li');
     loginLink.className = 'auth-link';
-    loginLink.innerHTML = '<a href="login.html">Login</a>';
+    loginLink.innerHTML = '<a href="/login">Login</a>';
     
     const registerLink = document.createElement('li');
     registerLink.className = 'auth-link';
-    registerLink.innerHTML = '<a href="register.html">Register</a>';
+    registerLink.innerHTML = '<a href="/register">Register</a>';
     
     navLinks.appendChild(loginLink);
     navLinks.appendChild(registerLink);

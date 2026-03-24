@@ -327,7 +327,7 @@ function renderPayPalButtons() {
       appliedCoupon = null;
 
       alert('Payment successful! Redirecting to your library...');
-      window.location.href = 'customer-dashboard.html';
+      window.location.href = '/customer-dashboard';
     },
     onError: (err) => {
       console.error('PayPal error:', err);

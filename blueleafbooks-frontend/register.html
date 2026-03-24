@@ -77,11 +77,11 @@
         
         // Redirect based on role
         if (response.user.role === 'customer') {
-          window.location.href = 'customer-dashboard.html';
+          window.location.href = '/customer-dashboard';
         } else if (response.user.role === 'author') {
-          window.location.href = 'author-dashboard.html';
+          window.location.href = '/author-dashboard';
         } else {
-          window.location.href = 'index.html';
+          window.location.href = '/';
         }
       } catch (error) {
         alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;

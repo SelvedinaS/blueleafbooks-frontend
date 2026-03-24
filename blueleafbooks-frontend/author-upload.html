@@ -211,7 +211,7 @@
           document.getElementById('price').value = book.price;
         } catch (error) {
           alert('Error loading book: ' + error.message);
-          window.location.href = 'author-dashboard.html';
+          window.location.href = '/author-dashboard';
         }
       }
 
@@ -255,7 +255,7 @@
             await booksAPI.create(formData);
             alert('Book submitted successfully! It is now live on the store.');
           }
-          window.location.href = 'author-dashboard.html';
+          window.location.href = '/author-dashboard';
         } catch (error) {
           alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
         }

@@ -107,7 +107,7 @@ async function downloadBookPdf(bookId) {
 
 function openPurchasedBook(bookId) {
   if (!bookId) return;
-  window.location.href = `book-details.html?id=${encodeURIComponent(bookId)}`;
+  window.location.href = `/book-details?id=${encodeURIComponent(bookId)}`;
 }
 
 function displayMyLibrary(orders) {
@@ -181,13 +181,13 @@ function displayMyLibrary(orders) {
   ` : '';
 
   if (purchasedBooks.length === 0 && allOrders.length === 0) {
-    container.innerHTML = `<p class="alert alert-info">You haven't purchased any books yet. <a href="store.html">Browse books</a></p>`;
+    container.innerHTML = `<p class="alert alert-info">You haven't purchased any books yet. <a href="/store">Browse books</a></p>`;
     return;
   }
 
   container.innerHTML = `
     <h2>My Library</h2>
-    ${purchasedBooks.length === 0 ? '<p class="alert alert-info">No books in your library yet. <a href="store.html">Browse books</a></p>' : `
+    ${purchasedBooks.length === 0 ? '<p class="alert alert-info">No books in your library yet. <a href="/store">Browse books</a></p>' : `
     <div class="books-grid">
       ${purchasedBooks.map(book => `
         <div class="book-card" onclick="openPurchasedBook('${book._id}')" style="cursor: pointer;">
@@ -394,7 +394,7 @@ async function displayAuthorDashboard(data) {
     <div class="section-card">
       <div class="section-header">
         <h2>My Books</h2>
-        <a href="author-upload.html" class="btn btn-primary">Upload new book</a>
+        <a href="/author-upload" class="btn btn-primary">Upload new book</a>
       </div>
       <div id="author-books-list"></div>
     </div>
@@ -684,7 +684,7 @@ function displayAuthorBooks(books) {
 
 // Edit book
 function editBook(bookId) {
-  window.location.href = `author-upload.html?id=${bookId}`;
+  window.location.href = `/author-upload?id=${bookId}`;
 }
 
 /* =========================

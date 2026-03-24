@@ -132,7 +132,7 @@
 
         const container = document.getElementById('categories');
         container.innerHTML = (genres || []).map(genre => `
-          <a href="store.html?genre=${encodeURIComponent(genre)}" class="btn btn-secondary">
+          <a href="/store?genre=${encodeURIComponent(genre)}" class="btn btn-secondary">
             ${genre}
           </a>
         `).join('');
