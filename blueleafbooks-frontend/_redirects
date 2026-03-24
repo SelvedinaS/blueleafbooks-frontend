@@ -1,1 +1,11 @@
-/index.html / 301
+/login /login.html 200
+/register /register.html 200
+/store /store.html 200
+/cart /cart.html 200
+/admin-dashboard /admin-dashboard.html 200
+/author-dashboard /author-dashboard.html 200
+/customer-dashboard /customer-dashboard.html 200
+/book /book.html 200
+/terms /terms.html 200
+/support /support.html 200
+/* /index.html 200
