@@ -1,0 +1,941 @@
+// Dashboard logic (customer / author / admin)
+
+// Helper: mobile breakpoint
+function isMobileView() {
+  return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+
+// Safe file URL helper (prevents crashes if missing elsewhere)
+function fileUrl(path) {
+  try {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    // FILE_BASE_URL should exist globally (set in your main.js / config)
+    if (typeof FILE_BASE_URL === 'undefined') return String(path);
+    return `${FILE_BASE_URL}/${String(path).replace(/^\/+/, '')}`;
+  } catch {
+    return String(path || '');
+  }
+}
+
+// Simple debounce
+function debounce(fn, wait = 150) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
+
+// Cache last loaded data so we can re-render on resize without refetch
+let _lastViewMode = isMobileView() ? 'mobile' : 'desktop';
+let _authorCache = null; // dashboard object
+let _adminCache = null;  // {books, authors, orders, earnings}
+let _customerCache = null; // orders array
+
+// Init by page
+document.addEventListener('DOMContentLoaded', () => {
+  const path = (window.location.pathname || '').toLowerCase();
+
+  if (path.includes('customer-dashboard')) {
+    loadCustomerDashboard();
+  } else if (path.includes('author-dashboard')) {
+    loadAuthorDashboard();
+  } else if (path.includes('admin-dashboard')) {
+    loadAdminDashboard();
+  }
+
+  // Re-render UI when switching between mobile/desktop width
+  window.addEventListener('resize', debounce(() => {
+    const mode = isMobileView() ? 'mobile' : 'desktop';
+    if (mode === _lastViewMode) return;
+    _lastViewMode = mode;
+
+    const p = (window.location.pathname || '').toLowerCase();
+    if (p.includes('customer-dashboard') && _customerCache) {
+      displayMyLibrary(_customerCache);
+    } else if (p.includes('author-dashboard') && _authorCache) {
+      displayAuthorDashboard(_authorCache);
+    } else if (p.includes('admin-dashboard') && _adminCache) {
+      displayAdminDashboard(_adminCache);
+    }
+  }, 200));
+});
+
+/* =========================
+   CUSTOMER DASHBOARD
+========================= */
+async function loadCustomerDashboard() {
+  if (!requireAuth()) return;
+  if (!requireRole('customer')) return;
+
+  try {
+    const orders = await ordersAPI.getMyOrders();
+    _customerCache = Array.isArray(orders) ? orders : [];
+    displayMyLibrary(_customerCache);
+  } catch (error) {
+    console.error('Error loading customer dashboard:', error);
+    const el = document.getElementById('dashboard-content');
+    if (el) el.innerHTML = '<p class="alert alert-error">Error loading your library. Please try again.</p>';
+  }
+}
+
+async function downloadBookPdf(bookId) {
+  const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL.replace(/\/api\/?$/, '') : '') || 'https://blueleafbooks-backend-geum.onrender.com';
+  const url = `${base}/api/books/${bookId}/download`;
+  const token = typeof getAuthToken === 'function' ? getAuthToken() : null;
+  if (!token) {
+    alert('Please log in to download.');
+    return;
+  }
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || res.statusText || 'Download failed');
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'book.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    alert(e.message || 'Download failed.');
+  }
+}
+
+function openPurchasedBook(bookId) {
+  if (!bookId) return;
+  window.location.href = `book-details.html?id=${encodeURIComponent(bookId)}`;
+}
+
+function displayMyLibrary(orders) {
+  const container = document.getElementById('dashboard-content');
+  if (!container) return;
+
+  const purchasedBooks = [];
+  (orders || []).forEach(order => {
+    if (order?.paymentStatus === 'completed') {
+      (order.items || []).forEach(item => {
+        if (!item?.book) return;
+        purchasedBooks.push({
+          ...item.book,
+          purchaseDate: order.createdAt,
+          orderId: order._id
+        });
+      });
+    }
+  });
+
+  const allOrders = (orders || []).filter(o => !!o);
+  const orderHistoryHtml = allOrders.length > 0 ? `
+    <div class="section-card" style="margin-top: 2rem;">
+      <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Order History</h2>
+      <p class="muted" style="margin-bottom: 1rem;">All your orders and their payment status.</p>
+      ${isMobileView() ? `
+        <div class="mobile-cards">
+          ${allOrders.map(o => {
+            const status = (o.paymentStatus || 'pending').toLowerCase();
+            const statusClass = status === 'completed' ? 'badge-success' : status === 'failed' ? 'badge-danger' : 'badge-warning';
+            const itemsCount = (o.items || []).length;
+            return `
+              <div class="mobile-card">
+                <div class="mobile-card-header">
+                  <div>
+                    <div class="mobile-card-title">Order ${(o._id || '').substring(0, 8)}...</div>
+                    <div class="mobile-card-subtitle">$${Number(o.totalAmount || 0).toFixed(2)} · ${itemsCount} book(s) · <span class="badge ${statusClass}">${status}</span></div>
+                  </div>
+                  <div class="mobile-card-actions">
+                    <button class="mobile-toggle" type="button">Details</button>
+                  </div>
+                </div>
+                <div class="mobile-card-details">
+                  <div class="mobile-kv"><span class="k">Date</span><span class="v">${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '-'}</span></div>
+                  <div class="mobile-kv"><span class="k">Status</span><span class="v"><span class="badge ${statusClass}">${status}</span></span></div>
+                  <div class="mobile-kv"><span class="k">Total</span><span class="v">$${Number(o.totalAmount || 0).toFixed(2)}</span></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Order ID</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            ${allOrders.map(o => {
+              const status = (o.paymentStatus || 'pending').toLowerCase();
+              const statusClass = status === 'completed' ? 'badge-success' : status === 'failed' ? 'badge-danger' : 'badge-warning';
+              return `<tr>
+                <td>${(o._id || '').substring(0, 8)}...</td>
+                <td>${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '-'}</td>
+                <td>${(o.items || []).length} book(s)</td>
+                <td>$${Number(o.totalAmount || 0).toFixed(2)}</td>
+                <td><span class="badge ${statusClass}">${status}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+      `}
+    </div>
+  ` : '';
+
+  if (purchasedBooks.length === 0 && allOrders.length === 0) {
+    container.innerHTML = `<p class="alert alert-info">You haven't purchased any books yet. <a href="store.html">Browse books</a></p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <h2>My Library</h2>
+    ${purchasedBooks.length === 0 ? '<p class="alert alert-info">No books in your library yet. <a href="store.html">Browse books</a></p>' : `
+    <div class="books-grid">
+      ${purchasedBooks.map(book => `
+        <div class="book-card" onclick="openPurchasedBook('${book._id}')" style="cursor: pointer;">
+          <img src="${fileUrl(book.coverImage)}" alt="${book.title || 'Book'}"
+               onerror="this.onerror=null;this.src='https://via.placeholder.com/250x300?text=No+Cover'">
+          <div class="book-card-content">
+            <div class="book-card-title">${book.title || '-'}</div>
+            <div class="book-card-author">${book.author?.name || 'Unknown Author'}</div>
+            <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0;">Purchased: ${book.purchaseDate ? new Date(book.purchaseDate).toLocaleDateString() : '-'}</p>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); openPurchasedBook('${book._id}')">Open & Rate</button>
+              <button type="button" class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadBookPdf('${book._id}')">Download PDF</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    `}
+    ${orderHistoryHtml}
+  `;
+
+  if (isMobileView()) wireMobileToggles();
+}
+
+/* =========================
+   AUTHOR DASHBOARD
+========================= */
+async function loadAuthorDashboard() {
+  if (!requireAuth()) return;
+  if (!requireRole('author')) return;
+
+  try {
+    const dashboard = await authorsAPI.getDashboard();
+    _authorCache = dashboard || {};
+    await displayAuthorDashboard(_authorCache);
+  } catch (error) {
+    console.error('Error loading author dashboard:', error);
+    const el = document.getElementById('dashboard-content');
+    if (el) el.innerHTML = '<p class="alert alert-error">Error loading dashboard. Please try again.</p>';
+  }
+}
+
+// Display author dashboard (Pro UI + reports + payout settings)
+async function displayAuthorDashboard(data) {
+  const container = document.getElementById('dashboard-content');
+  if (!container) return;
+
+  // Load payout settings
+  let payoutEmail = '';
+  try {
+    const payoutSettings = await authorsAPI.getPayoutSettings();
+    payoutEmail = payoutSettings?.payoutPaypalEmail || '';
+  } catch (error) {
+    console.error('Error loading payout settings:', error);
+  }
+
+  const fmtDate = (d) => {
+    if (!d) return '-';
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+  const adminEmail = data.adminPaymentEmail || 'blueleafbooks@hotmail.com';
+  const isTrial = false;
+
+  const lastMonthFee = money(data.lastMonth?.feeDue);
+  const currentMonthAccrued = money(data.currentMonth?.feeAccrued);
+
+  const lastMonthPeriod = data.lastMonth?.period || '-';
+  const lastMonthDue = fmtDate(data.lastMonth?.dueDate);
+  const lastMonthOverdue = !!data.lastMonth?.overdue;
+  const lastMonthPaid = !!data.lastMonth?.status?.isPaid;
+
+  const currentMonthPeriod = data.currentMonth?.period || '-';
+  const currentMonthDue = fmtDate(data.currentMonth?.dueDate);
+
+  const topBook = data.topBook || null;
+  const topRatedBook = data.topRatedBook || null;
+
+  container.innerHTML = `
+    <div class="section-header">
+      <div>
+        <div class="page-title">Overview</div>
+        <div class="page-subtitle">Your books, sales, and platform fee status.</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="label">Total Books</div>
+        <div class="value">${Number(data.books || 0)}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total Sales</div>
+        <div class="value">${Number(data.totalSales || 0)}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Total Earnings</div>
+        <div class="value">${money(data.totalEarnings)}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Unpaid Earnings</div>
+        <div class="value">${money(data.unpaidEarnings)}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Best-Selling Book</div>
+        <div class="value" style="font-size:1.1rem;line-height:1.3;">${topBook ? topBook.title : 'No sales yet'}</div>
+        <div class="muted" style="margin-top:0.35rem;">${topBook ? `${Number(topBook.salesCount || 0)} sale${Number(topBook.salesCount || 0) === 1 ? '' : 's'}` : 'Your top seller will appear here.'}</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Top-Rated Book</div>
+        <div class="value" style="font-size:1.1rem;line-height:1.3;">${topRatedBook ? topRatedBook.title : 'No ratings yet'}</div>
+        <div class="muted" style="margin-top:0.35rem;">${topRatedBook ? `${Number(topRatedBook.rating || 0).toFixed(1)}/5 from ${Number(topRatedBook.ratingCount || 0)} review${Number(topRatedBook.ratingCount || 0) === 1 ? '' : 's'}` : 'Your highest rated book will appear here.'}</div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Platform Fee (5%)</h2>
+      </div>
+
+      <p class="muted">
+        BlueLeafBooks charges a fixed <strong>5%</strong> platform fee on each completed sale.
+        You pay the <strong>previous month</strong> by the <strong>10th of the next month</strong>.
+      </p>
+
+      <div class="btn-row" style="margin-top:0.75rem;">
+        <div>
+          <div class="muted" style="font-size:0.9rem;">Payment email</div>
+          <div style="font-weight:900; color:#0052cc;">${adminEmail}</div>
+        </div>
+
+        <div>
+          <div class="muted" style="font-size:0.9rem;">Fee rate</div>
+          <div style="font-weight:800;">5% platform fee</div>
+        </div>
+      </div>
+
+      <div class="fee-grid">
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Amount due (last month)</div>
+          <div class="fee-amount">${lastMonthFee}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">
+            Period: ${lastMonthPeriod} · Due by: ${lastMonthDue}
+            ${lastMonthOverdue ? '<span class="badge badge-danger" style="margin-left:0.4rem;">OVERDUE</span>' : ''}
+          </div>
+          <div style="margin-top:0.35rem;">
+            Status:
+            ${lastMonthPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}
+          </div>
+        </div>
+
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Current month (accrued)</div>
+          <div class="fee-amount">${currentMonthAccrued}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">
+            Period: ${currentMonthPeriod} · Due by: ${currentMonthDue}
+          </div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.35rem;">
+            Current-month sales are being tracked and will be due next month.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Performance Highlights</h2>
+      </div>
+      <div class="fee-grid">
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Top seller</div>
+          <div class="fee-amount" style="font-size:1.4rem;">${topBook ? topBook.title : 'No sales yet'}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">${topBook ? `Sold ${Number(topBook.salesCount || 0)} time${Number(topBook.salesCount || 0) === 1 ? '' : 's'}` : 'Once you make sales, your bestseller appears here.'}</div>
+        </div>
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Top rated</div>
+          <div class="fee-amount" style="font-size:1.4rem;">${topRatedBook ? topRatedBook.title : 'No ratings yet'}</div>
+          <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">${topRatedBook ? `${Number(topRatedBook.rating || 0).toFixed(1)}/5 from ${Number(topRatedBook.ratingCount || 0)} review${Number(topRatedBook.ratingCount || 0) === 1 ? '' : 's'}` : 'Customer ratings will appear here.'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Payout Settings</h2>
+      </div>
+      <div id="payout-settings-alert"></div>
+      <div class="form-group" style="max-width:520px;">
+        <label for="payout-paypal-email">Your PayPal email (required – money goes directly to you)</label>
+        <input
+          id="payout-paypal-email"
+          type="email"
+          placeholder="your-paypal@email.com"
+          value="${String(payoutEmail || '').replace(/"/g, '&quot;')}"
+        />
+      </div>
+      <button class="btn btn-primary" type="button" onclick="savePayoutSettings()">Save payout settings</button>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>My Books</h2>
+        <a href="author-upload.html" class="btn btn-primary">Upload new book</a>
+      </div>
+      <div id="author-books-list"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Monthly Reports</h2>
+      </div>
+      <p class="muted">
+        Download a PDF report of your monthly earnings, including each sale, platform fee (5%), and your net income.
+        This report is for your records and tax reporting.
+      </p>
+      <div id="author-reports-alert"></div>
+      <div class="reports-row">
+        <div class="form-group" style="max-width: 140px;">
+          <label for="author-report-month">Month</label>
+          <select id="author-report-month"></select>
+        </div>
+        <div class="form-group" style="max-width: 140px;">
+          <label for="author-report-year">Year</label>
+          <select id="author-report-year"></select>
+        </div>
+        <button id="author-download-report" class="btn btn-secondary" type="button">Download PDF</button>
+      </div>
+
+      <p class="muted" style="font-size:0.9rem; margin-top:0.75rem;">
+        Note: BlueLeafBooks is not responsible for your taxes. Authors are fully responsible for reporting and paying their own taxes.
+      </p>
+    </div>
+  `;
+
+  // Hook report button
+  const btn = document.getElementById('author-download-report');
+  if (btn) btn.onclick = downloadAuthorMonthlyReport;
+
+  // Populate month/year dropdowns
+  const monthSelect = document.getElementById('author-report-month');
+  const yearSelect = document.getElementById('author-report-year');
+
+  if (monthSelect && monthSelect.options.length === 0) {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    for (let m = 1; m <= 12; m++) {
+      const opt = document.createElement('option');
+      opt.value = String(m);
+      opt.textContent = String(m).padStart(2, '0');
+      if (m === currentMonth) opt.selected = true;
+      monthSelect.appendChild(opt);
+    }
+  }
+
+  if (yearSelect && yearSelect.options.length === 0) {
+    const y = new Date().getFullYear();
+    for (let i = 0; i < 6; i++) {
+      const opt = document.createElement('option');
+      opt.value = String(y - i);
+      opt.textContent = String(y - i);
+      if (i === 0) opt.selected = true;
+      yearSelect.appendChild(opt);
+    }
+  }
+
+  displayAuthorBooks(data.booksList || []);
+}
+
+// Download monthly earnings PDF for author
+async function downloadAuthorMonthlyReport() {
+  const alertContainer = document.getElementById('author-reports-alert');
+  if (alertContainer) alertContainer.innerHTML = '';
+
+  const monthEl = document.getElementById('author-report-month');
+  const yearEl = document.getElementById('author-report-year');
+  const month = parseInt(monthEl?.value || '', 10);
+  const year = parseInt(yearEl?.value || '', 10);
+
+  if (!month || !year) {
+    if (alertContainer) {
+      alertContainer.innerHTML = '<div class="alert alert-error">Please select a valid month and year.</div>';
+    } else {
+      alert('Please select a valid month and year.');
+    }
+    return;
+  }
+
+  try {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/authors/reports/monthly/${year}/${month}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || 'Failed to generate report');
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const monthPadded = String(month).padStart(2, '0');
+    link.href = url;
+    link.download = `blueleafbooks-earnings-${year}-${monthPadded}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading author report:', error);
+    if (alertContainer) {
+      alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+    } else {
+      alert('Error downloading report: ' + error.message);
+    }
+  }
+}
+
+// Save payout settings
+async function savePayoutSettings() {
+  const alertContainer = document.getElementById('payout-settings-alert');
+  const emailInput = document.getElementById('payout-paypal-email');
+  const email = (emailInput?.value || '').trim();
+
+  if (alertContainer) alertContainer.innerHTML = '';
+
+  if (email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      if (alertContainer) alertContainer.innerHTML = '<div class="alert alert-error">Please enter a valid email address</div>';
+      return;
+    }
+  }
+
+  try {
+    await authorsAPI.updatePayoutSettings({ payoutPaypalEmail: email });
+    if (alertContainer) alertContainer.innerHTML = '<div class="alert alert-success">Payout settings saved successfully!</div>';
+  } catch (error) {
+    if (alertContainer) alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+  }
+}
+
+// Mobile: toggle details
+function wireMobileToggles() {
+  document.querySelectorAll('.mobile-toggle').forEach(btn => {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', (e) => {
+      const card = e.currentTarget.closest('.mobile-card');
+      if (!card) return;
+      card.classList.toggle('is-open');
+      e.currentTarget.textContent = card.classList.contains('is-open') ? 'Hide' : 'Details';
+    });
+  });
+}
+
+// Display author books
+function displayAuthorBooks(books) {
+  const container = document.getElementById('author-books-list');
+  if (!container) return;
+
+  if (!Array.isArray(books) || books.length === 0) {
+    container.innerHTML = `<p class="alert alert-info">You haven't uploaded any books yet.</p>`;
+    return;
+  }
+
+  if (isMobileView()) {
+    container.innerHTML = `
+      <div class="mobile-cards">
+        ${books.map(book => {
+          const isDeleted = !!book.isDeleted;
+          const status = String(book.status || '').toLowerCase();
+          const statusLabel = isDeleted
+            ? 'Deleted by admin'
+            : status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Unknown';
+
+          const badgeClass = isDeleted
+            ? 'badge-danger'
+            : status === 'approved'
+              ? 'badge-success'
+              : status === 'pending'
+                ? 'badge-warning'
+                : 'badge-danger';
+
+          return `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div>
+                  <div class="mobile-card-title">${isDeleted ? '[DELETED] ' : ''}${book.title || '-'}</div>
+                  <div class="mobile-card-subtitle">
+                    <span class="badge ${badgeClass}">${statusLabel}</span>
+                    <span style="margin-left:8px;">$${Number(book.price || 0).toFixed(2)}</span>
+                    <span style="margin-left:8px;">Sales: ${Number(book.salesCount || 0)}</span>
+                  </div>
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  ${!isDeleted ? `<button class="btn btn-secondary btn-small" type="button" onclick="editBook('${book._id}')">Edit</button>` : ''}
+                </div>
+              </div>
+
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><div class="k">Genre</div><div class="v">${book.genre || '-'}</div></div>
+                <div class="mobile-kv"><div class="k">Price</div><div class="v">$${Number(book.price || 0).toFixed(2)}</div></div>
+                <div class="mobile-kv"><div class="k">Sales</div><div class="v">${Number(book.salesCount || 0)}</div></div>
+                <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                  <img
+                    src="${fileUrl(book.coverImage)}"
+                    alt="${book.title || 'Cover'}"
+                    style="width:64px;height:80px;object-fit:cover;border-radius:10px;"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.onerror=null;this.src='https://via.placeholder.com/64x80?text=No+Cover';"
+                  >
+                  <div class="muted" style="font-size:0.9rem;">
+                    ${isDeleted ? 'This book was deleted by admin.' : 'Tap Edit to update this book.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    wireMobileToggles();
+    return;
+  }
+
+  // Desktop table
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cover</th>
+            <th>Title</th>
+            <th>Genre</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Sales</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${books.map(book => {
+            const isDeleted = !!book.isDeleted;
+            const status = String(book.status || '').toLowerCase();
+            const statusLabel = isDeleted
+              ? 'Deleted by admin'
+              : status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Unknown';
+
+            const badgeClass = isDeleted
+              ? 'badge-danger'
+              : status === 'approved'
+                ? 'badge-success'
+                : status === 'pending'
+                  ? 'badge-warning'
+                  : 'badge-danger';
+
+            return `
+              <tr>
+                <td>
+                  <img
+                    src="${fileUrl(book.coverImage)}"
+                    alt="${book.title || 'Cover'}"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.onerror=null;this.src='https://via.placeholder.com/52x66?text=No+Cover';"
+                  >
+                </td>
+                <td>${isDeleted ? '[DELETED] ' + (book.title || '-') : (book.title || '-')}</td>
+                <td>${book.genre || '-'}</td>
+                <td>$${Number(book.price || 0).toFixed(2)}</td>
+                <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+                <td>${Number(book.salesCount || 0)}</td>
+                <td>
+                  ${!isDeleted
+                    ? `<button class="btn btn-secondary btn-small" type="button" onclick="editBook('${book._id}')">Edit</button>`
+                    : `<span class="muted" style="font-size:0.85rem;">This book was deleted by admin</span>`
+                  }
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Edit book
+function editBook(bookId) {
+  window.location.href = `author-upload.html?id=${bookId}`;
+}
+
+/* =========================
+   ADMIN DASHBOARD
+========================= */
+async function loadAdminDashboard() {
+  if (!requireAuth()) return;
+  if (!requireRole('admin')) return;
+
+  try {
+    const [books, authors, orders, earnings] = await Promise.all([
+      adminAPI.getAllBooks('all'),
+      adminAPI.getAllAuthors(),
+      adminAPI.getAllOrders(),
+      adminAPI.getEarnings()
+    ]);
+
+    _adminCache = {
+      books: books || [],
+      authors: authors || [],
+      orders: orders || [],
+      earnings: earnings || {}
+    };
+
+    displayAdminDashboard(_adminCache);
+  } catch (error) {
+    console.error('Error loading admin dashboard:', error);
+    const el = document.getElementById('dashboard-content');
+    if (el) el.innerHTML = '<p class="alert alert-error">Error loading dashboard. Please try again.</p>';
+  }
+}
+
+function displayAdminDashboard(data) {
+  const container = document.getElementById('dashboard-content');
+  if (!container) return;
+
+  const booksArr = Array.isArray(data.books) ? data.books : [];
+  const authorsArr = Array.isArray(data.authors) ? data.authors : [];
+  const topBooks = [...booksArr]
+    .filter(book => !book.isDeleted)
+    .sort((a, b) => (Number(b.salesCount || 0) - Number(a.salesCount || 0)) || (Number(b.rating || 0) - Number(a.rating || 0)))
+    .slice(0, 5);
+  const topRatedBooks = [...booksArr]
+    .filter(book => !book.isDeleted && Number(book.ratingCount || 0) > 0)
+    .sort((a, b) => (Number(b.rating || 0) - Number(a.rating || 0)) || (Number(b.ratingCount || 0) - Number(a.ratingCount || 0)) || (Number(b.salesCount || 0) - Number(a.salesCount || 0)))
+    .slice(0, 5);
+
+  container.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Books</h3>
+        <div class="value">${booksArr.length}</div>
+      </div>
+      <div class="stat-card">
+        <h3>Total Authors</h3>
+        <div class="value">${authorsArr.length}</div>
+      </div>
+      <div class="stat-card">
+        <h3>Platform Earnings</h3>
+        <div class="value">$${Number(data.earnings?.totalEarnings || 0).toFixed(2)}</div>
+      </div>
+    </div>
+
+    <div class="section-card" style="margin-bottom:1rem;">
+      <h3>Sales Highlights</h3>
+      <div class="fee-grid">
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Best-selling books</div>
+          ${topBooks.length ? topBooks.map((book, index) => `<div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.45rem 0;border-bottom:${index === topBooks.length - 1 ? '0' : '1px solid #eef2f7'};"><span>${index + 1}. ${book.title}</span><strong>${Number(book.salesCount || 0)} sales</strong></div>`).join('') : '<div class="muted" style="margin-top:0.4rem;">No sales yet.</div>'}
+        </div>
+        <div class="fee-box">
+          <div class="muted" style="font-size:0.9rem;">Top-rated books</div>
+          ${topRatedBooks.length ? topRatedBooks.map((book, index) => `<div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.45rem 0;border-bottom:${index === topRatedBooks.length - 1 ? '0' : '1px solid #eef2f7'};"><span>${index + 1}. ${book.title}</span><strong>${Number(book.rating || 0).toFixed(1)}/5</strong></div>`).join('') : '<div class="muted" style="margin-top:0.4rem;">No ratings yet.</div>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card" style="margin-bottom:1rem;">
+      <h3>Tools</h3>
+      <p style="margin-bottom:0.5rem;">Fix slike/PDF URL-ove (fral→fra1, geun→geum) u bazi.</p>
+      <button class="btn btn-secondary" type="button" onclick="fixBookUrls()">Fix Book URLs</button>
+      <span id="fix-urls-result" style="margin-left:0.5rem;"></span>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Authors</h2>
+      </div>
+      <div id="authors-table"></div>
+    </div>
+  `;
+
+  displayAuthorsTable(authorsArr);
+}
+
+function displayAuthorsTable(authors) {
+  const container = document.getElementById('authors-table');
+  if (!container) return;
+
+  if (!Array.isArray(authors) || authors.length === 0) {
+    container.innerHTML = '<p class="alert alert-info">No authors found.</p>';
+    return;
+  }
+
+  if (isMobileView()) {
+    container.innerHTML = `
+      <div class="mobile-cards">
+        ${authors.map(a => {
+          const status = a.isBlocked ? 'Blocked' : 'Active';
+          const blockedAt = a.blockedAt ? new Date(a.blockedAt).toLocaleString() : '-';
+          const reason = a.blockedReason ? a.blockedReason : '-';
+          return `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div>
+                  <div class="mobile-card-title">${a.name || '—'}</div>
+                  <div class="mobile-card-subtitle">
+                    <span class="badge ${a.isBlocked ? 'badge-danger' : 'badge-success'}">${status}</span>
+                    <span style="margin-left:8px;">${a.email || '—'}</span>
+                  </div>
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  ${a.isBlocked
+                    ? `<button class="btn btn-success btn-small" type="button" onclick="unblockAuthor('${a._id}')">Unblock</button>`
+                    : `<button class="btn btn-danger btn-small" type="button" onclick="blockAuthorPrompt('${a._id}')">Block</button>`
+                  }
+                </div>
+              </div>
+
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><div class="k">PayPal</div><div class="v">${a.payoutPaypalEmail || '—'}</div></div>
+                <div class="mobile-kv"><div class="k">Reason</div><div class="v">${reason}</div></div>
+                <div class="mobile-kv"><div class="k">Blocked at</div><div class="v">${blockedAt}</div></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    wireMobileToggles();
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Author</th>
+            <th>Email</th>
+            <th>PayPal</th>
+            <th>Status</th>
+            <th>Reason</th>
+            <th>Blocked At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${authors.map(a => {
+            const status = a.isBlocked ? 'Blocked' : 'Active';
+            const blockedAt = a.blockedAt ? new Date(a.blockedAt).toLocaleString() : '-';
+            const reason = a.blockedReason ? a.blockedReason : '-';
+            return `
+              <tr>
+                <td>${a.name || '—'}</td>
+                <td>${a.email || '—'}</td>
+                <td>${a.payoutPaypalEmail || '—'}</td>
+                <td><span class="badge ${a.isBlocked ? 'badge-danger' : 'badge-success'}">${status}</span></td>
+                <td>${reason}</td>
+                <td>${blockedAt}</td>
+                <td>
+                  ${a.isBlocked
+                    ? `<button class="btn btn-success btn-small" type="button" onclick="unblockAuthor('${a._id}')">Unblock</button>`
+                    : `<button class="btn btn-danger btn-small" type="button" onclick="blockAuthorPrompt('${a._id}')">Block</button>`
+                  }
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function blockAuthorPrompt(authorId) {
+  const reason = prompt('Reason for blocking (optional):', 'Unpaid platform fee');
+  try {
+    await adminAPI.blockAuthor(authorId, reason || 'Unpaid platform fee');
+    alert('Author blocked. Their books are now hidden and they cannot publish new ones.');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error blocking author: ' + error.message);
+  }
+}
+
+async function unblockAuthor(authorId) {
+  try {
+    await adminAPI.unblockAuthor(authorId);
+    alert('Author unblocked.');
+    loadAdminDashboard();
+  } catch (error) {
+    alert('Error unblocking author: ' + error.message);
+  }
+}
+
+async function fixBookUrls() {
+  const resultEl = document.getElementById('fix-urls-result');
+  if (resultEl) resultEl.textContent = 'Running...';
+  try {
+    const r = await adminAPI.fixBookUrls();
+    if (resultEl) resultEl.textContent = r.message || 'Done!';
+    if (r.message) alert(r.message);
+  } catch (error) {
+    if (resultEl) resultEl.textContent = 'Error';
+    alert('Error: ' + (error.message || 'Unknown error'));
+  }
+}
+
+// Admin: update curated featured flag/order for a book
+async function updateFeatured(bookId) {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      alert('Please login again.');
+      return;
+    }
+
+    const checkbox = document.getElementById(`feat-${bookId}`);
+    const orderInput = document.getElementById(`featOrder-${bookId}`);
+
+    const isFeatured = !!checkbox?.checked;
+    const featuredOrder = Math.max(0, parseInt(orderInput?.value || '0', 10) || 0);
+
+    const res = await fetch(`${API_BASE_URL}/admin/books/${bookId}/featured`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ isFeatured, featuredOrder })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.message || 'Failed to update featured settings');
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error updating featured settings');
+  }
+}

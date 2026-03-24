@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>Checkout – BlueLeafBooks</title>
+  <meta name="description" content="Complete your purchase securely with PayPal. Digital books delivered to your library.">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="store.html">Store</a></li>
+        <li><a href="cart.html">Cart</a></li>
+        <li><a href="for-authors.html">For Authors</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h1 class="section-title">Checkout</h1>
+
+    <div id="checkout-container">
+      <p class="loading">Loading...</p>
+    </div>
+  </div>
+
+  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="support.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
+        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
+        <a href="refund-policy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
+        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms & Conditions</a>
+      </p>
+    </div>
+  </footer>
+
+  <script src="./js/api.js?v=3"></script>
+  <script src="./js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    let cartBooks = [];
+    let totalAmount = 0;
+    let appliedCoupon = null;
+
+    async function loadCheckout() {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+      if (!cart || cart.length === 0) {
+        document.getElementById('checkout-container').innerHTML =
+          '<p class="alert alert-info">Your cart is empty. <a href="store.html">Browse books</a></p>';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/cart/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookIds: cart })
+        });
+
+        // ✅ FIX: use safeJson so it works even if server returns HTML / non-JSON errors
+        const data = await safeJson(response);
+
+        cartBooks = data || [];
+        totalAmount = cartBooks.reduce((sum, book) => sum + (Number(book.price) || 0), 0);
+
+        document.getElementById('checkout-container').innerHTML = `
+          <div class="cart-summary">
+            <h3>Order Summary</h3>
+
+            <div style="margin: 1rem 0;">
+              ${cartBooks.map(book => `
+                <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--border-color);">
+                  <span>${escapeHtml(book.title)}</span>
+                  <span>$${Number(book.price).toFixed(2)}</span>
+                </div>
+              `).join('')}
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-top: 1rem;">
+              <span>Subtotal:</span>
+              <span id="checkout-subtotal">$${totalAmount.toFixed(2)}</span>
+            </div>
+
+            <div id="checkout-discount-row" style="display:none; justify-content:space-between; margin-top:0.25rem; color:#008000;">
+              <span>Discount:</span>
+              <span id="checkout-discount-amount"></span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-top:0.75rem; font-size:1.2rem; font-weight:bold;">
+              <span>Total:</span>
+              <span id="checkout-total">$${totalAmount.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <label for="checkout-coupon-input" style="font-weight:600;">Discount code (optional)</label>
+            <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+              <input id="checkout-coupon-input" type="text" placeholder="Enter coupon code" style="flex:1; padding:0.5rem;" />
+              <button type="button" class="btn btn-secondary" onclick="applyCheckoutCoupon()">Apply</button>
+            </div>
+            <p id="checkout-coupon-message" style="margin-top:0.4rem; font-size:0.9rem;"></p>
+          </div>
+
+          <div id="paypal-button-container" style="margin-top: 2rem; min-height: 50px;">
+            <p class="loading" style="margin: 0;">Loading payment options...</p>
+          </div>
+          <p id="checkout-backend-hint" style="margin-top:0.5rem; font-size:0.85rem; color:#666; display:none;">
+            If payment fails with "Failed to fetch", the server may be starting. <a href="https://blueleafbooks-backend-geum.onrender.com/api/health" target="_blank" rel="noopener">Open this link</a> to wake it up, then try again.
+          </p>
+        `;
+
+        initializePayPalOrTestMode();
+      } catch (error) {
+        console.error('Error loading checkout:', error);
+        document.getElementById('checkout-container').innerHTML =
+          `<p class="alert alert-error">Error loading checkout: ${escapeHtml(error.message)}</p>`;
+      }
+    }
+
+    function updateTotalsDisplay() {
+      const subtotalEl = document.getElementById('checkout-subtotal');
+      const discountRow = document.getElementById('checkout-discount-row');
+      const discountAmountEl = document.getElementById('checkout-discount-amount');
+      const totalEl = document.getElementById('checkout-total');
+
+      const subtotal = cartBooks.reduce((sum, book) => sum + (Number(book.price) || 0), 0);
+      let discountAmount = 0;
+
+      if (appliedCoupon && appliedCoupon.success) {
+        discountAmount = Number(appliedCoupon.discountAmount) || 0;
+      }
+
+      if (subtotalEl) subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+
+      if (discountRow && discountAmountEl) {
+        if (discountAmount > 0) {
+          discountRow.style.display = 'flex';
+          discountAmountEl.textContent = `- $${discountAmount.toFixed(2)}`;
+        } else {
+          discountRow.style.display = 'none';
+          discountAmountEl.textContent = '';
+        }
+      }
+
+      const total = subtotal - discountAmount;
+      if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+
+      totalAmount = total;
+    }
+
+    async function applyCheckoutCoupon() {
+      const input = document.getElementById('checkout-coupon-input');
+      const messageEl = document.getElementById('checkout-coupon-message');
+      if (!input || !messageEl) return;
+
+      const code = input.value.trim();
+      messageEl.textContent = '';
+      messageEl.style.color = '';
+
+      if (!code) {
+        appliedCoupon = null;
+        updateTotalsDisplay();
+        messageEl.textContent = 'No code entered. You will pay full price.';
+        messageEl.style.color = '#555';
+        return;
+      }
+
+      if (!cartBooks || cartBooks.length === 0) {
+        messageEl.textContent = 'Cart is empty.';
+        messageEl.style.color = 'red';
+        return;
+      }
+
+      try {
+        const bookIds = cartBooks.map(b => b._id);
+
+        if (typeof checkoutAPI !== 'undefined' && checkoutAPI.applyCoupon) {
+          const result = await checkoutAPI.applyCoupon({ code, bookIds });
+
+          if (result.success) {
+            appliedCoupon = result;
+            messageEl.textContent = `Code applied: ${result.discountPercentage}% off. You save $${Number(result.discountAmount).toFixed(2)}.`;
+            messageEl.style.color = 'green';
+          } else {
+            appliedCoupon = null;
+            messageEl.textContent = result.message || 'Invalid or expired code.';
+            messageEl.style.color = 'red';
+          }
+        } else {
+          const res = await fetch(`${API_BASE_URL}/checkout/apply-coupon`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, bookIds })
+          });
+
+          const result = await safeJson(res);
+
+          if (result.success) {
+            appliedCoupon = result;
+            messageEl.textContent = `Code applied: ${result.discountPercentage}% off. You save $${Number(result.discountAmount).toFixed(2)}.`;
+            messageEl.style.color = 'green';
+          } else {
+            appliedCoupon = null;
+            messageEl.textContent = result.message || 'Invalid or expired code.';
+            messageEl.style.color = 'red';
+          }
+        }
+      } catch (error) {
+        appliedCoupon = null;
+        messageEl.textContent = error.message || 'Error applying coupon code.';
+        messageEl.style.color = 'red';
+      }
+
+      updateTotalsDisplay();
+    }
+
+    async function initializePayPalOrTestMode() {
+  const container = document.getElementById('paypal-button-container');
+  if (!container) return;
+
+  // If PayPal already loaded, render immediately
+  if (window.paypal && typeof paypal.Buttons === 'function' && typeof paypalAPI !== 'undefined') {
+    container.innerHTML = '';
+    renderPayPalButtons();
+    return;
+  }
+
+  // Load PayPal client-id from backend, then inject SDK script
+  try {
+    const res = await fetch(`${API_BASE_URL}/paypal/client-id`);
+    const data = await safeJson(res);
+    const clientId = data && data.clientId ? data.clientId : '';
+
+    if (!clientId) {
+      throw new Error('PayPal client-id is missing on the backend. Set PAYPAL_CLIENT_ID in Render/ENV and redeploy.');
+    }
+
+    const isSandbox = data && data.isSandbox !== false;
+    if (!isSandbox && data && data.mode) {
+      console.log('PayPal mode:', data.mode, '- ensure client-id matches (sandbox app for sandbox)');
+    }
+
+    // Avoid loading twice
+    if (!document.getElementById('paypal-sdk')) {
+      const script = document.createElement('script');
+      script.id = 'paypal-sdk';
+      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&components=buttons&disable-funding=card`;
+      script.onload = () => {
+        try {
+          container.innerHTML = '';
+          renderPayPalButtons();
+        } catch (e) {
+          container.innerHTML = `<p class="alert alert-error">${escapeHtml(e.message || 'PayPal init error')}</p>`;
+        }
+      };
+      script.onerror = () => {
+        container.innerHTML = `<p class="alert alert-error">Failed to load PayPal SDK. Check adblock/network.</p>`;
+      };
+      document.head.appendChild(script);
+    }
+  } catch (err) {
+    container.innerHTML = `
+      <div class="alert alert-error">
+        <p><strong>PayPal is not configured.</strong></p>
+        <p>${escapeHtml(err.message || 'Contact support.')}</p>
+        <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 0.5rem;">Try again</button>
+      </div>
+    `;
+  }
+}
+
+function renderPayPalButtons() {
+  const container = document.getElementById('paypal-button-container');
+  if (!container) return;
+
+  paypal.Buttons({
+    createOrder: async () => {
+      const items = cartBooks.map(b => ({ bookId: b._id }));
+      const payload = { items };
+      if (appliedCoupon && appliedCoupon.success) {
+        payload.discountCode = appliedCoupon.discountCode;
+      }
+      try {
+        const res = await paypalAPI.createOrder(payload);
+        return res.id || res.orderId;
+      } catch (e) {
+        const msg = (e && e.message) ? e.message : 'Error creating order.';
+        const debugId = (e && e.debug_id) || '';
+        console.error('PayPal createOrder error:', msg, debugId ? 'debug_id=' + debugId : '');
+        throw new Error(debugId ? msg + ' [debug_id: ' + debugId + ']' : msg);
+      }
+    },
+    onApprove: async (data) => {
+      let capture;
+      try {
+        capture = await paypalAPI.captureOrder(data.orderID);
+      } catch (e) {
+        const msg = (e && e.message) ? e.message : 'Capture failed.';
+        const debugId = (e && e.debug_id) || '';
+        console.error('PayPal capture error:', msg, debugId ? 'debug_id=' + debugId : '');
+        throw new Error(debugId ? msg + ' [debug_id: ' + debugId + ']' : msg);
+      }
+
+      const orderData = {
+        items: cartBooks.map(book => ({ bookId: book._id })),
+        paymentId: (capture && (capture.paymentId || capture.orderId)) || data.orderID
+      };
+
+      if (appliedCoupon && appliedCoupon.success) {
+        orderData.discountCode = appliedCoupon.discountCode;
+      }
+
+      await ordersAPI.create(orderData);
+
+      localStorage.removeItem('cart');
+      appliedCoupon = null;
+
+      alert('Payment successful! Redirecting to your library...');
+      window.location.href = 'customer-dashboard.html';
+    },
+    onError: (err) => {
+      console.error('PayPal error:', err);
+      const msg = (err && err.message) ? err.message : 'Payment error. Please try again.';
+      const hint = document.getElementById('checkout-backend-hint');
+      if (hint && (msg.includes('Failed to fetch') || msg.includes('fetch'))) hint.style.display = 'block';
+      container.innerHTML = `
+        <p class="alert alert-error">${escapeHtml(msg)}</p>
+        <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 0.5rem;">Try again</button>
+      `;
+    }
+  }).render('#paypal-button-container');
+}
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (btn && nav) {
+        btn.addEventListener('click', () => {
+          nav.classList.toggle('open');
+          btn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+        });
+      }
+      loadCheckout();
+    });
+  </script>
+</body>
+</html>
