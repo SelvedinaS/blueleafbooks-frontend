@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=1">
+  <title>Admin Dashboard - BlueLeafBooks</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/support">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="dashboard">
+      <button class="dashboard-menu-btn" type="button" aria-expanded="false" aria-controls="dashboard-sidebar">Menu</button>
+      <div class="dashboard-sidebar">
+        <h3>Admin Panel</h3>
+        <ul>
+          <li><a href="#" onclick="showSection('overview', event); return false;" class="active">Overview</a></li>
+          <li><a href="#" onclick="showSection('books', event); return false;">All Books</a></li>
+          <li><a href="#" onclick="showSection('authors', event); return false;">Authors</a></li>
+          <li><a href="#" onclick="showSection('fees', event); return false;">Platform Fees</a></li>
+          <li><a href="#" onclick="showSection('orders', event); return false;">Orders</a></li>
+          <li><a href="#" onclick="showSection('payouts', event); return false;">Payouts</a></li>
+          <li><a href="#" onclick="showSection('coupons', event); return false;">Discount Codes</a></li>
+        </ul>
+      </div>
+
+      <div class="dashboard-content">
+        <div id="dashboard-content">
+          <p class="loading">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js?v=3"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/dashboard.js"></script>
+
+  <script>
+    // Enforce auth/role
+    requireAuth();
+    requireRole('admin');
+
+    let currentSection = 'overview';
+
+    // Mobile: collapse/expand sidebar under the button
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (menuBtn && nav) {
+        menuBtn.addEventListener('click', () => { nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false'); });
+      }
+      const btn = document.querySelector('.dashboard-menu-btn');
+      const sidebar = document.querySelector('.dashboard-sidebar');
+      if (btn && sidebar) {
+        sidebar.id = 'dashboard-sidebar';
+        btn.addEventListener('click', () => { const open = sidebar.classList.toggle('is-open'); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+      }
+    });
+
+    // Helper: cover image URL (online-safe)
+    function getCoverUrl(book) {
+      if (book.coverImage && (book.coverImage.startsWith('http://') || book.coverImage.startsWith('https://'))) {
+        return book.coverImage;
+      }
+      return `${API_BASE_URL.replace('/api','')}/${book.coverImage || ''}`;
+    }
+
+    function isMobileView() {
+      return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function wireMobileToggles() {
+      document.querySelectorAll('.mobile-toggle').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', (e) => {
+          const card = e.currentTarget.closest('.mobile-card');
+          if (!card) return;
+          card.classList.toggle('is-open');
+          e.currentTarget.textContent = card.classList.contains('is-open') ? 'Hide' : 'Details';
+        });
+      });
+    }
+
+    async function showSection(section, e) {
+      currentSection = section;
+
+      // Update active link
+      document.querySelectorAll('.dashboard-sidebar a').forEach(a => a.classList.remove('active'));
+      if (e && e.target) e.target.classList.add('active');
+
+      const container = document.getElementById('dashboard-content');
+      container.innerHTML = '<p class="loading">Loading...</p>';
+
+      try {
+        if (section === 'overview') {
+          await loadAdminDashboard();
+        } else if (section === 'books') {
+          await loadAllBooks();
+        } else if (section === 'authors') {
+          await loadAllAuthors();
+        } else if (section === 'orders') {
+          await loadAllOrders();
+        } else if (section === 'fees') {
+          await loadPlatformFees();
+        } else if (section === 'payouts') {
+          await loadPayouts();
+        } else if (section === 'coupons') {
+          await loadCoupons();
+        }
+      } catch (error) {
+        container.innerHTML = `<p class="alert alert-error">Error: ${error.message}</p>`;
+      }
+    }
+
+    async function loadAllBooks(statusFilter) {
+      const status = statusFilter || document.getElementById('book-status-filter')?.value || 'all';
+      const books = await adminAPI.getAllBooks(status === 'all' ? null : status);
+      const container = document.getElementById('dashboard-content');
+      const mobile = isMobileView();
+
+      const statusBadge = (book) => {
+        const s = book.isDeleted ? 'Deleted' : 'Live';
+        const bg = book.isDeleted ? '#e2e3e5' : '#d4edda';
+        const c = book.isDeleted ? '#6c757d' : '#155724';
+        return `<span class="badge" style="background:${bg};color:${c};">${s}</span>`;
+      };
+
+      if (mobile) {
+        container.innerHTML = `
+          <h2>All Books</h2>
+          <select id="book-status-filter" onchange="filterBooks()" style="margin-bottom: 1rem; padding: 0.6rem; min-height:44px;">
+            <option value="all" ${status==='all'?'selected':''}>All</option>
+            <option value="deleted" ${status==='deleted'?'selected':''}>Deleted only</option>
+          </select>
+          <div class="mobile-cards">
+            ${books.map(book => `
+              <div class="mobile-card">
+                <div class="mobile-card-header">
+                  <div>
+                    <div class="mobile-card-title">${book.isDeleted ? '[DELETED] ' : ''}${book.title}</div>
+                    <div class="mobile-card-subtitle">${book.author?.name || 'Unknown'} · $${Number(book.price || 0).toFixed(2)} · ${statusBadge(book)}</div>
+                  </div>
+                  <div class="mobile-card-actions">
+                    <button class="mobile-toggle" type="button">Details</button>
+                    ${!book.isDeleted ? `<button class="btn btn-danger btn-small" onclick="adminDeleteBook('${book._id}')">Delete</button>` : ''}
+                  </div>
+                </div>
+                <div class="mobile-card-details">
+                  <div class="mobile-kv"><span class="k">Genre</span><span class="v">${book.genre || '-'}</span></div>
+                  <div class="mobile-kv"><span class="k">Sales</span><span class="v">${book.salesCount || 0}</span></div>
+                  <label style="display:flex;align-items:center;gap:0.5rem;margin-top:8px;"><input type="checkbox" id="feat-${book._id}" ${book.isFeatured ? 'checked' : ''} onchange="updateFeatured('${book._id}')" /><span>Featured</span></label>
+                  <div style="margin-top:8px;"><label>Order: <input type="number" min="0" id="featOrder-${book._id}" value="${Number(book.featuredOrder || 0)}" style="width:70px;padding:8px;" onchange="updateFeatured('${book._id}')" /></label></div>
+                  <img src="${getCoverUrl(book)}" alt="${book.title}" style="width:80px;height:100px;object-fit:cover;border-radius:8px;margin-top:10px;" onerror="this.src='https://via.placeholder.com/80x100?text=No+Cover'">
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        wireMobileToggles();
+      } else {
+        container.innerHTML = `
+          <h2>All Books</h2>
+          <select id="book-status-filter" onchange="filterBooks()" style="margin-bottom: 1rem; padding: 0.5rem;">
+            <option value="all" ${status==='all'?'selected':''}>All</option>
+            <option value="deleted" ${status==='deleted'?'selected':''}>Deleted only</option>
+          </select>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Cover</th><th>Title</th><th>Author</th><th>Genre</th><th>Price</th><th>Status</th><th>Sales</th><th>Featured</th><th>Order</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${books.map(book => `
+                <tr>
+                  <td><img src="${getCoverUrl(book)}" alt="${book.title}" style="width:50px;height:60px;object-fit:cover;" onerror="this.src='https://via.placeholder.com/50x60?text=No+Cover'"></td>
+                  <td>${book.title}</td>
+                  <td>${book.author?.name || 'Unknown'}</td>
+                  <td>${book.genre}</td>
+                  <td>$${Number(book.price || 0).toFixed(2)}</td>
+                  <td>${statusBadge(book)}</td>
+                  <td>${book.salesCount || 0}</td>
+                  <td><label style="display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="feat-${book._id}" ${book.isFeatured ? 'checked' : ''} onchange="updateFeatured('${book._id}')" /><span style="font-size:0.9rem;color:#555;">Featured</span></label></td>
+                  <td><input type="number" min="0" step="1" id="featOrder-${book._id}" value="${Number(book.featuredOrder || 0)}" style="width:80px;padding:0.35rem;" onchange="updateFeatured('${book._id}')" /></td>
+                  <td>
+                    ${!book.isDeleted ? `<button class="btn btn-danger btn-small" onclick="adminDeleteBook('${book._id}')" style="margin-left:0.25rem;">Delete</button>` : ''}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table></div>
+        `;
+      }
+    }
+
+    async function filterBooks() {
+      const status = document.getElementById('book-status-filter').value;
+      await loadAllBooks(status);
+    }
+
+    async function adminDeleteBook(bookId) {
+      if (!confirm('Are you sure you want to delete this book from the platform? Existing buyers will still keep access.')) {
+        return;
+      }
+
+      try {
+        await adminAPI.deleteBook(bookId);
+        alert('Book deleted successfully');
+        if (currentSection === 'books') {
+          loadAllBooks();
+        } else {
+          loadAdminDashboard();
+        }
+      } catch (error) {
+        alert('Error deleting book: ' + error.message);
+      }
+    }
+
+    async function loadAllAuthors() {
+      const container = document.getElementById('dashboard-content');
+
+      // Default: previous month (YYYY-MM)
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const defaultPeriod = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+
+      const [authors, feeData] = await Promise.all([
+        adminAPI.getAllAuthors(),
+        adminAPI.getCycleFees()
+      ]);
+
+      const rows = (feeData && feeData.rows) ? feeData.rows : [];
+      const feePct = feeData && feeData.feePercentage ? feeData.feePercentage : 5;
+
+      const allMembers = authors || [];
+
+
+      container.innerHTML = `
+        <h2>All Authors</h2>
+
+        <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <h3 style="margin-bottom: 0.5rem;">Manual Platform Fee Status</h3>
+          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
+            Authors pay the platform fee manually. Use this table to track who has paid for each month and block/unblock if needed.
+          </p>
+
+          <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+            <div class="form-group" style="max-width: 220px;">
+              <label for="admin-fee-period">Period (YYYY-MM)</label>
+              <input type="month" id="admin-fee-period" value="${defaultPeriod}">
+            </div>
+            <button class="btn btn-primary" onclick="loadFeeStatusForPeriod()">Load</button>
+            <div style="margin-left:auto; color:#666; font-size:0.95rem;">
+              Fee: <strong id="admin-fee-pct">${feePct}%</strong> • Due date: <strong id="admin-fee-duedate">${new Date(feeData.dueDate).toLocaleDateString()}</strong>
+            </div>
+          </div>
+
+          <div id="admin-fee-alert" style="margin-top:0.75rem;"></div>
+
+          <div style="margin-top:1rem; padding:0.85rem; background:#f8fbff; border:1px solid #d8e6ff; border-radius:8px;">
+            <h4 style="margin:0 0 0.5rem 0;">Manual Password Reset</h4>
+            <p style="color:#666; margin:0 0 0.75rem 0; font-size:0.95rem;">If a user forgets their password, set a new password here and send it to them manually.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+              <div class="form-group" style="max-width:280px;">
+                <label for="manual-reset-email">User email</label>
+                <input type="email" id="manual-reset-email" placeholder="user@email.com">
+              </div>
+              <div class="form-group" style="max-width:240px;">
+                <label for="manual-reset-password">New password</label>
+                <input type="text" id="manual-reset-password" placeholder="Enter new password">
+              </div>
+              <button class="btn btn-primary" onclick="manualResetPassword()">Set password</button>
+            </div>
+            <div id="manual-reset-alert" style="margin-top:0.75rem;"></div>
+          </div>
+
+          <div style="overflow:auto; margin-top: 1rem;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Billing day</th>
+                  <th>Billing cycle</th>
+                  <th>Due by</th>
+                  <th>Gross sales</th>
+                  <th>Amount due</th>
+                  <th>Status</th>
+                  <th>Paid at</th>
+                  <th>Overdue</th>
+                  <th>Blocked</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-fee-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <h3 style="margin-bottom: 0.5rem;">Author Membership Groups</h3>
+          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
+            All authors pay a fixed 5% platform fee on completed sales. Use this section to review author accounts and payment details.
+          </p>
+
+          <div style="overflow:auto;">
+            <h4 style="margin:0.5rem 0;">All Authors — ${allMembers.length}</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th>Author</th>
+                  <th>Joined</th>
+                  <th>PayPal Set</th>
+                  <th>Blocked</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${allMembers.map(a => `
+                  <tr>
+                    <td><strong>${a.name}</strong><br/><span style="color:#666; font-size:0.9rem;">${a.email}</span></td>
+                    <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}</td>
+                    <td>${a.payoutPaypalEmail ? '<span class="badge badge-success">YES</span>' : '<span class="badge badge-warning">NO</span>'}</td>
+                    <td>${a.isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
+
+        <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <h3 style="margin-bottom: 0.5rem;">Monthly Reports</h3>
+          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
+            Download monthly earnings PDFs for any author to verify sales, platform fees, and their net income.
+          </p>
+          <div id="admin-author-reports-alert"></div>
+          <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+            <div class="form-group" style="min-width: 200px;">
+              <label for="admin-report-author">Author</label>
+              <select id="admin-report-author">
+                ${authors.map(author => `
+                  <option value="${author._id}">${author.name} (${author.email})</option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="max-width: 120px;">
+              <label for="admin-report-month">Month</label>
+              <select id="admin-report-month">
+                ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+                  const selected = (m === (now.getMonth() + 1)) ? 'selected' : '';
+                  return `<option value="${m}" ${selected}>${m}</option>`;
+                }).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="max-width: 140px;">
+              <label for="admin-report-year">Year</label>
+              <input type="number" id="admin-report-year" min="2000" max="2100" value="${now.getFullYear()}" />
+            </div>
+            <button class="btn btn-primary" onclick="downloadAdminAuthorMonthlyReport()">Download PDF</button>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>PayPal Payout Email</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${authors.map(author => `
+              <tr>
+                <td>${author.name}</td>
+                <td>${author.email}</td>
+                <td>${author.payoutPaypalEmail || '<span style="color: #999;">Not set</span>'}</td>
+                <td>${new Date(author.createdAt).toLocaleDateString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function loadFeeStatusForPeriod() {
+      const alertEl = document.getElementById('admin-fee-alert');
+      if (alertEl) alertEl.innerHTML = '';
+
+      try {
+        const feeData = await adminAPI.getCycleFees();
+        const tbody = document.getElementById('admin-fee-tbody');
+        if (!tbody) return;
+
+        const rows = feeData.rows || [];
+
+        const fmtDate = (d) => {
+          if (!d) return '—';
+          const dt = new Date(d);
+          if (Number.isNaN(dt.getTime())) return '—';
+          return dt.toLocaleDateString();
+        };
+
+        const mobile = isMobileView();
+        if (mobile) {
+          let cardsDiv = document.getElementById('admin-fee-cards');
+          const tableWrap = tbody.closest('div');
+          if (!cardsDiv && tableWrap) {
+            cardsDiv = document.createElement('div');
+            cardsDiv.id = 'admin-fee-cards';
+            cardsDiv.className = 'mobile-cards';
+            tableWrap.style.display = 'none';
+            tableWrap.parentNode.insertBefore(cardsDiv, tableWrap);
+          }
+          if (cardsDiv) {
+            cardsDiv.innerHTML = rows.map(r => {
+              const name = r.author?.name || '';
+              const email = r.author?.email || '';
+              const authorId = r.author?._id || '';
+              const isBlocked = !!r.author?.isBlocked;
+              const periodKey = r.cycle?.key || '';
+              const isPaid = !!r.status?.isPaid;
+              const overdue = !!r.overdue;
+              const amountDue = Number(r.cycle?.feeDue || 0);
+              return `<div class="mobile-card">
+                <div class="mobile-card-header">
+                  <div><div class="mobile-card-title">${name}</div><div class="mobile-card-subtitle">$${amountDue.toFixed(2)} · ${isPaid ? 'PAID' : 'UNPAID'} ${overdue ? '· OVERDUE' : ''}</div></div>
+                  <div class="mobile-card-actions">
+                    <button class="mobile-toggle" type="button">Details</button>
+                    ${isPaid ? `<button class="btn btn-secondary btn-small" onclick="markAuthorUnpaid('${authorId}', '${periodKey}')">Mark Unpaid</button>` : `<button class="btn btn-primary btn-small" onclick="markAuthorPaid('${authorId}', '${periodKey}')">Mark Paid</button>`}
+                    ${isBlocked ? `<button class="btn btn-secondary btn-small" onclick="unblockAuthor('${authorId}')">Unblock</button>` : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${authorId}')">Block</button>`}
+                  </div>
+                </div>
+                <div class="mobile-card-details">
+                  <div class="mobile-kv"><span class="k">Email</span><span class="v">${email}</span></div>
+                  <div class="mobile-kv"><span class="k">Gross</span><span class="v">$${Number(r.cycle?.grossSales || 0).toFixed(2)}</span></div>
+                  <div class="mobile-kv"><span class="k">Due by</span><span class="v">${fmtDate(r.dueDate)}</span></div>
+                </div>
+              </div>`;
+            }).join('');
+            wireMobileToggles();
+          }
+          tbody.innerHTML = '';
+        } else {
+          const feeCards = document.getElementById('admin-fee-cards');
+          if (feeCards) feeCards.remove();
+          const tw = tbody.closest('div');
+          if (tw) tw.style.display = '';
+          tbody.innerHTML = rows.map(r => {
+            const name = r.author?.name || '';
+            const email = r.author?.email || '';
+            const authorId = r.author?._id || '';
+            const isBlocked = !!r.author?.isBlocked;
+            const periodKey = r.cycle?.key || '';
+            const isPaid = !!r.status?.isPaid;
+            const overdue = !!r.overdue;
+            const accountBadge = ''; 
+            const amountDue = Number(r.cycle?.feeDue || 0);
+            return `<tr>
+              <td><strong>${name}</strong><br/><span style="color:#666;font-size:0.9rem;">${email}</span>${accountBadge}</td>
+              <td>${r.billingDay || '—'}</td>
+              <td style="white-space:nowrap;">${fmtDate(r.cycle?.start)} – ${fmtDate(r.cycle?.end)}</td>
+              <td style="white-space:nowrap;">${fmtDate(r.dueDate)}</td>
+              <td>$${Number(r.cycle?.grossSales || 0).toFixed(2)}</td>
+              <td><strong>$${amountDue.toFixed(2)}</strong></td>
+              <td>${isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}</td>
+              <td>${isPaid ? fmtDate(r.status?.paidAt) : '<span style="color:#999;">—</span>'}</td>
+              <td>${overdue ? '<span class="badge badge-danger">OVERDUE</span>' : '<span style="color:#999;">—</span>'}</td>
+              <td>${isBlocked ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}</td>
+              <td style="min-width:320px;">${isPaid ? `<button class="btn btn-secondary" onclick="markAuthorUnpaid('${authorId}', '${periodKey}')">Mark Unpaid</button>` : `<button class="btn btn-primary" onclick="markAuthorPaid('${authorId}', '${periodKey}')">Mark Paid</button>`} ${isBlocked ? `<button class="btn btn-secondary" style="margin-left:6px;" onclick="unblockAuthor('${authorId}')">Unblock</button>` : `<button class="btn btn-danger" style="margin-left:6px;" onclick="blockAuthorPrompt('${authorId}')">Block</button>`}</td>
+            </tr>`;
+          }).join('');
+        }
+
+        const pctEl = document.getElementById('admin-fee-pct');
+        if (pctEl) pctEl.textContent = `${feeData.feePercentage}%`;
+
+        // Due date differs per author (billing cycle end varies), so we don't show a single due date.
+        const dueEl = document.getElementById('admin-fee-duedate');
+        if (dueEl) dueEl.textContent = 'Varies per author';
+
+      } catch (error) {
+        if (alertEl) alertEl.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+      }
+    }
+
+    async function markAuthorPaid(authorId, periodKey) {
+            const note = prompt('Optional note (e.g., PayPal transaction ID):') || '';
+      try {
+        await adminAPI.markCycleFeePaid(authorId, periodKey, note);
+        const alertEl = document.getElementById('admin-fee-alert');
+        if (alertEl) alertEl.innerHTML = `<div class="alert alert-success">Marked as PAID.</div>`;
+        await loadFeeStatusForPeriod();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function markAuthorUnpaid(authorId, periodKey) {
+            const note = prompt('Optional note (e.g., reason):') || '';
+      try {
+        await adminAPI.markCycleFeeUnpaid(authorId, periodKey, note);
+        const alertEl = document.getElementById('admin-fee-alert');
+        if (alertEl) alertEl.innerHTML = `<div class="alert alert-success">Marked as UNPAID.</div>`;
+        await loadFeeStatusForPeriod();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+
+    async function downloadAdminAuthorMonthlyReport() {
+      const alertContainer = document.getElementById('admin-author-reports-alert');
+      if (alertContainer) alertContainer.innerHTML = '';
+
+      const authorId = document.getElementById('admin-report-author')?.value;
+      const month = parseInt(document.getElementById('admin-report-month')?.value || '', 10);
+      const year = parseInt(document.getElementById('admin-report-year')?.value || '', 10);
+
+      if (!authorId || !month || !year) {
+        const msg = 'Please select an author, month, and year.';
+        alertContainer.innerHTML = `<div class="alert alert-error">${msg}</div>`;
+        return;
+      }
+
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/admin/reports/authors/${authorId}/${year}/${month}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || 'Failed to generate report');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const monthPadded = String(month).padStart(2, '0');
+        link.href = url;
+        link.download = `blueleafbooks-earnings-${authorId}-${year}-${monthPadded}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${error.message || 'Error downloading report'}</div>`;
+      }
+    }
+
+    async function loadAllOrders() {
+      const orders = await adminAPI.getAllOrders();
+      const container = document.getElementById('dashboard-content');
+      const mobile = isMobileView();
+
+      const reportHtml = `
+        <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <h3 style="margin-bottom: 0.5rem;">Monthly Platform Report</h3>
+          <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">Download a monthly PDF report showing all authors and all sales for the selected period.</p>
+          <div id="admin-platform-reports-alert"></div>
+          <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
+            <div class="form-group" style="max-width: 120px;">
+              <label for="admin-platform-month">Month</label>
+              <select id="admin-platform-month">
+                ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+                  const now = new Date();
+                  const selected = (m === (now.getMonth() + 1)) ? 'selected' : '';
+                  return `<option value="${m}" ${selected}>${m}</option>`;
+                }).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="max-width: 140px;">
+              <label for="admin-platform-year">Year</label>
+              <input type="number" id="admin-platform-year" min="2000" max="2100" value="${new Date().getFullYear()}" style="padding:8px;" />
+            </div>
+            <button class="btn btn-primary" onclick="downloadAdminPlatformMonthlyReport()">Download Platform PDF</button>
+          </div>
+        </div>
+      `;
+
+      if (mobile) {
+        container.innerHTML = `<h2>All Orders</h2>${reportHtml}<div class="mobile-cards">
+          ${orders.map(order => `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div>
+                  <div class="mobile-card-title">${order.customer?.name || 'Unknown'}</div>
+                  <div class="mobile-card-subtitle">$${Number(order.totalAmount || 0).toFixed(2)} · ${order.items?.length || 0} book(s)</div>
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                </div>
+              </div>
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><span class="k">Order ID</span><span class="v">${order._id?.substring(0, 8) || ''}...</span></div>
+                <div class="mobile-kv"><span class="k">Customer</span><span class="v">${order.customer?.name || 'Unknown'}</span></div>
+                <div class="mobile-kv"><span class="k">Items</span><span class="v">${order.items?.length || 0} book(s)</span></div>
+                <div class="mobile-kv"><span class="k">Total</span><span class="v">$${Number(order.totalAmount || 0).toFixed(2)}</span></div>
+                <div class="mobile-kv"><span class="k">Platform</span><span class="v">$${Number(order.platformEarnings || 0).toFixed(2)}</span></div>
+                <div class="mobile-kv"><span class="k">Date</span><span class="v">${order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</span></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+        wireMobileToggles();
+      } else {
+        container.innerHTML = `<h2>All Orders</h2>${reportHtml}<div class="table-wrap"><table>
+          <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Platform Earnings</th><th>Date</th></tr></thead>
+          <tbody>${orders.map(order => `
+            <tr>
+              <td>${order._id?.substring(0, 8) || ''}...</td>
+              <td>${order.customer?.name || 'Unknown'}</td>
+              <td>${order.items?.length || 0} book(s)</td>
+              <td>$${Number(order.totalAmount || 0).toFixed(2)}</td>
+              <td>$${Number(order.platformEarnings || 0).toFixed(2)}</td>
+              <td>${order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
+            </tr>
+          `).join('')}</tbody></table></div>`;
+      }
+    }
+
+    async function downloadAdminPlatformMonthlyReport() {
+      const alertContainer = document.getElementById('admin-platform-reports-alert');
+      if (alertContainer) alertContainer.innerHTML = '';
+
+      const month = parseInt(document.getElementById('admin-platform-month')?.value || '', 10);
+      const year = parseInt(document.getElementById('admin-platform-year')?.value || '', 10);
+
+      if (!month || !year) {
+        alertContainer.innerHTML = `<div class="alert alert-error">Please select a valid month and year.</div>`;
+        return;
+      }
+
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE_URL}/admin/reports/monthly/${year}/${month}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || 'Failed to generate report');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const monthPadded = String(month).padStart(2, '0');
+        link.href = url;
+        link.download = `blueleafbooks-platform-earnings-${year}-${monthPadded}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${error.message || 'Error downloading report'}</div>`;
+      }
+    }
+
+    
+    async function loadPlatformFees() {
+      // Default period: previous month
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const defaultPeriod = prev.toISOString().slice(0, 7);
+
+      const container = document.getElementById('dashboard-content');
+      container.innerHTML = `
+        <h2>Platform Fees (Authors pay you 5%)</h2>
+        <p class="alert alert-info">
+          Fee is calculated per calendar month at a fixed <strong>5%</strong>. Payment deadline is the <strong>10th</strong> of the next month.
+          Payment email: <strong>blueleafbooks@hotmail.com</strong>
+        </p>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-bottom:1rem;">
+          <label style="font-weight:700;">Period (YYYY-MM):</label>
+          <input id="feePeriodInput" type="month" value="${defaultPeriod}" style="padding:0.5rem;">
+          <button class="btn btn-primary btn-small" onclick="refreshPlatformFees()">Load</button>
+        </div>
+
+        <div id="fees-table-box"></div>
+      `;
+
+      await refreshPlatformFees();
+    }
+
+    async function refreshPlatformFees() {
+      const periodInput = document.getElementById('feePeriodInput');
+      const period = (periodInput && periodInput.value) ? periodInput.value : new Date().toISOString().slice(0,7);
+
+      const [authors, feeReport] = await Promise.all([
+        adminAPI.getAllAuthors(),
+        adminAPI.getFeeStatus(period)
+      ]);
+
+      // Fees table
+      const box = document.getElementById('fees-table-box');
+      if (!box) return;
+
+      const rows = feeReport?.rows || [];
+      const dueDate = feeReport?.dueDate ? new Date(feeReport.dueDate).toLocaleDateString() : '-';
+      const mobile = typeof isMobileView === 'function' && isMobileView();
+
+      if (mobile && rows.length > 0) {
+        box.innerHTML = `<h3 style="margin-bottom:0.5rem;">Fee report for ${feeReport?.period || period} (Due by ${dueDate})</h3>
+        <div class="mobile-cards">${rows.map(r => `
+          <div class="mobile-card">
+            <div class="mobile-card-header">
+              <div><div class="mobile-card-title">${r.name || '—'}</div><div class="mobile-card-subtitle">$${Number(r.platformFeeDue || 0).toFixed(2)} · ${r.isPaid ? 'PAID' : 'UNPAID'} ${r.isOverdue ? '· OVERDUE' : ''}</div></div>
+              <div class="mobile-card-actions">
+                <button class="mobile-toggle" type="button">Details</button>
+                ${r.isPaid ? `<button class="btn btn-warning btn-small" onclick="markFeeUnpaid('${r.authorId}', '${feeReport?.period || period}')">Mark unpaid</button>` : `<button class="btn btn-success btn-small" onclick="markFeePaid('${r.authorId}', '${feeReport?.period || period}')">Mark paid</button>`}
+                ${r.isBlocked ? `<button class="btn btn-success btn-small" onclick="unblockAuthor('${r.authorId}')">Unblock</button>` : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}
+              </div>
+            </div>
+            <div class="mobile-card-details">
+              <div class="mobile-kv"><span class="k">Email</span><span class="v">${r.email || '—'}</span></div>
+              <div class="mobile-kv"><span class="k">PayPal</span><span class="v">${r.payoutPaypalEmail || 'Not set'}</span></div>
+              <div class="mobile-kv"><span class="k">Gross</span><span class="v">$${Number(r.grossSales || 0).toFixed(2)}</span></div>
+            </div>
+          </div>
+        `).join('')}</div>`;
+        if (typeof wireMobileToggles === 'function') wireMobileToggles();
+      } else {
+        box.innerHTML = `
+        <h3 style="margin-bottom:0.5rem;">Fee report for ${feeReport?.period || period} (Due by ${dueDate})</h3>
+        <div style="overflow:auto; background:var(--white); border:1px solid var(--border-color); border-radius:8px;">
+          <table>
+            <thead><tr><th>Author</th><th>Email</th><th>PayPal</th><th>Gross Sales</th><th>Fee Due (5%)</th><th>Status</th><th>Overdue</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="8">No data</td></tr>' : rows.map(r => `
+                <tr>
+                  <td>${r.name || '—'}</td><td>${r.email || '—'}</td><td>${r.payoutPaypalEmail || '<span style="color:#999;">Not set</span>'}</td>
+                  <td>$${Number(r.grossSales || 0).toFixed(2)}</td><td><strong>$${Number(r.platformFeeDue || 0).toFixed(2)}</strong></td>
+                  <td>${r.isPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}</td>
+                  <td>${r.isOverdue ? '<span style="color:#c00;font-weight:700;">YES</span>' : 'No'}</td>
+                  <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">${r.isPaid ? `<button class="btn btn-warning btn-small" onclick="markFeeUnpaid('${r.authorId}', '${feeReport?.period || period}')">Mark unpaid</button>` : `<button class="btn btn-success btn-small" onclick="markFeePaid('${r.authorId}', '${feeReport?.period || period}')">Mark paid</button>`} ${r.isBlocked ? `<button class="btn btn-success btn-small" onclick="unblockAuthor('${r.authorId}')">Unblock</button>` : `<button class="btn btn-danger btn-small" onclick="blockAuthorPrompt('${r.authorId}')">Block</button>`}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      }
+    }
+
+
+    async function manualResetPassword() {
+      const alertBox = document.getElementById('manual-reset-alert');
+      const email = document.getElementById('manual-reset-email')?.value?.trim();
+      const newPassword = document.getElementById('manual-reset-password')?.value?.trim();
+      if (!email || !newPassword) {
+        if (alertBox) alertBox.innerHTML = '<div class="alert alert-error">Enter user email and a new password.</div>';
+        return;
+      }
+      try {
+        const result = await adminAPI.resetUserPassword(email, newPassword);
+        if (alertBox) alertBox.innerHTML = `<div class="alert alert-success">Password updated for <strong>${result.user?.email || email}</strong>. Send this password to the user manually.</div>`;
+      } catch (e) {
+        if (alertBox) alertBox.innerHTML = `<div class="alert alert-error">${e.message || 'Password reset failed'}</div>`;
+      }
+    }
+
+    async function markFeePaid(authorId, period) {
+      const note = prompt('Optional note (e.g. transaction id):', '') || '';
+      try {
+        await adminAPI.markFeePaid(authorId, period, note);
+        await refreshPlatformFees();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function markFeeUnpaid(authorId, period) {
+      const note = prompt('Optional note:', '') || '';
+      try {
+        await adminAPI.markFeeUnpaid(authorId, period, note);
+        await refreshPlatformFees();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+async function loadPayouts() {
+      const payouts = await adminAPI.getPayouts();
+      const container = document.getElementById('dashboard-content');
+      const mobile = isMobileView();
+      const infoHtml = '<p class="alert alert-info">Unpaid earnings for authors. Mark as paid after processing monthly payouts.</p>';
+
+      if (mobile) {
+        container.innerHTML = `<h2>Author Payouts</h2>${infoHtml}<div class="mobile-cards">
+          ${payouts.length === 0 ? '<p class="muted">No unpaid earnings.</p>' : payouts.map(p => `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div><div class="mobile-card-title">${p.author?.name || '-'}</div><div class="mobile-card-subtitle">$${Number(p.unpaidEarnings || 0).toFixed(2)}</div></div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  <button class="btn btn-success btn-small" onclick="markPayoutPaid('${p.author?.id}', ${p.unpaidEarnings})">Mark as Paid</button>
+                </div>
+              </div>
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><span class="k">Email</span><span class="v">${p.author?.email || '-'}</span></div>
+                <div class="mobile-kv"><span class="k">PayPal</span><span class="v">${p.author?.payoutPaypalEmail || 'Not set'}</span></div>
+                <div class="mobile-kv"><span class="k">Unpaid</span><span class="v">$${Number(p.unpaidEarnings || 0).toFixed(2)}</span></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+        wireMobileToggles();
+      } else {
+        container.innerHTML = `<h2>Author Payouts</h2>${infoHtml}<div class="table-wrap"><table><thead><tr><th>Author</th><th>Email</th><th>PayPal Payout Email</th><th>Unpaid Earnings</th><th>Actions</th></tr></thead><tbody>
+          ${payouts.length === 0 ? '<tr><td colspan="5">No unpaid earnings</td></tr>' : payouts.map(p => `
+            <tr><td>${p.author?.name || '-'}</td><td>${p.author?.email || '-'}</td><td>${p.author?.payoutPaypalEmail || '<span style="color:#999;">Not set</span>'}</td><td>$${Number(p.unpaidEarnings || 0).toFixed(2)}</td><td><button class="btn btn-success btn-small" onclick="markPayoutPaid('${p.author?.id}', ${p.unpaidEarnings})">Mark as Paid</button></td></tr>
+          `).join('')}</tbody></table></div>`;
+      }
+    }
+
+    async function markPayoutPaid(authorId, amount) {
+      if (!confirm(`Mark $${amount} as paid for this author?`)) return;
+
+      try {
+        const period = new Date().toISOString().slice(0, 7); // YYYY-MM
+        await adminAPI.markPayoutPaid({ authorId, amount: parseFloat(amount), period });
+        alert('Payout marked as paid');
+        loadPayouts();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // Coupons section - unchanged logic from your code
+    // (kept as-is)
+    async function loadCoupons() {
+      try {
+        const [coupons, authors] = await Promise.all([
+          adminAPI.getAllCoupons(),
+          adminAPI.getAllAuthors()
+        ]);
+        const container = document.getElementById('dashboard-content');
+        const mobile = isMobileView();
+
+        const formHtml = `
+          <div id="create-coupon-form" style="display: none; background: var(--white); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <h3>Create New Coupon</h3>
+            <div id="create-coupon-alert"></div>
+            <div class="form-group"><label>Code *</label><input type="text" id="new-coupon-code" placeholder="e.g., SAVE20" required></div>
+            <div class="form-group"><label>Discount % * (1-100)</label><input type="number" id="new-coupon-percentage" min="1" max="100" required></div>
+            <div class="form-group"><label>Scope *</label><select id="new-coupon-scope" onchange="toggleAuthorSelect()" required><option value="all">All Books</option><option value="author">Specific Author</option></select></div>
+            <div class="form-group" id="author-select-group" style="display: none;"><label>Author *</label><select id="new-coupon-author"><option value="">Select Author</option>${authors.map(a => `<option value="${a._id}">${a.name} (${a.email})</option>`).join('')}</select></div>
+            <div class="form-group"><label>Valid From (optional)</label><input type="datetime-local" id="new-coupon-validFrom"></div>
+            <div class="form-group"><label>Valid To (optional)</label><input type="datetime-local" id="new-coupon-validTo"></div>
+            <button class="btn btn-primary" onclick="createCoupon()">Create Coupon</button>
+            <button class="btn btn-secondary" onclick="hideCreateCouponForm()" style="margin-left: 0.5rem;">Cancel</button>
+          </div>
+        `;
+
+        if (mobile) {
+          container.innerHTML = `<h2>Discount Codes</h2><button class="btn btn-primary" onclick="showCreateCouponForm()" style="margin-bottom: 1rem;">Create New Coupon</button>${formHtml}
+          <div class="mobile-cards">${coupons.length === 0 ? '<p class="muted">No coupons yet.</p>' : coupons.map(c => `
+            <div class="mobile-card">
+              <div class="mobile-card-header">
+                <div><div class="mobile-card-title">${c.code}</div><div class="mobile-card-subtitle">${c.discountPercentage}% · ${c.scope === 'author' ? 'Author' : 'All'} · <span class="badge ${c.isActive ? 'badge-success' : 'badge-danger'}">${c.isActive ? 'Active' : 'Inactive'}</span></div></div>
+                <div class="mobile-card-actions">
+                  <button class="mobile-toggle" type="button">Details</button>
+                  <button class="btn btn-secondary btn-small" onclick="toggleCouponStatus('${c._id}')">${c.isActive ? 'Deactivate' : 'Activate'}</button>
+                  <button class="btn btn-danger btn-small" onclick="deleteCoupon('${c._id}')">Delete</button>
+                </div>
+              </div>
+              <div class="mobile-card-details">
+                <div class="mobile-kv"><span class="k">Code</span><span class="v">${c.code}</span></div>
+                <div class="mobile-kv"><span class="k">Discount</span><span class="v">${c.discountPercentage}%</span></div>
+                <div class="mobile-kv"><span class="k">Author</span><span class="v">${c.author ? c.author.name : '-'}</span></div>
+                <div class="mobile-kv"><span class="k">Valid From</span><span class="v">${c.validFrom ? new Date(c.validFrom).toLocaleDateString() : '-'}</span></div>
+                <div class="mobile-kv"><span class="k">Valid To</span><span class="v">${c.validTo ? new Date(c.validTo).toLocaleDateString() : '-'}</span></div>
+              </div>
+            </div>
+          `).join('')}</div>`;
+          wireMobileToggles();
+        } else {
+          container.innerHTML = `<h2>Discount Codes</h2><button class="btn btn-primary" onclick="showCreateCouponForm()" style="margin-bottom: 1rem;">Create New Coupon</button>${formHtml}
+          <div class="table-wrap"><table><thead><tr><th>Code</th><th>Discount %</th><th>Scope</th><th>Author</th><th>Status</th><th>Valid From</th><th>Valid To</th><th>Actions</th></tr></thead><tbody>
+            ${coupons.length === 0 ? '<tr><td colspan="8">No coupons created yet</td></tr>' : coupons.map(c => `
+              <tr><td><strong>${c.code}</strong></td><td>${c.discountPercentage}%</td><td>${c.scope === 'author' ? 'Author' : 'All'}</td><td>${c.author ? c.author.name : '-'}</td>
+              <td><span class="badge ${c.isActive ? 'badge-success' : 'badge-danger'}">${c.isActive ? 'Active' : 'Inactive'}</span></td>
+              <td>${c.validFrom ? new Date(c.validFrom).toLocaleDateString() : '-'}</td><td>${c.validTo ? new Date(c.validTo).toLocaleDateString() : '-'}</td>
+              <td><button class="btn btn-secondary btn-small" onclick="toggleCouponStatus('${c._id}')">${c.isActive ? 'Deactivate' : 'Activate'}</button><button class="btn btn-danger btn-small" onclick="deleteCoupon('${c._id}')" style="margin-left:0.5rem;">Delete</button></td></tr>
+            `).join('')}</tbody></table></div>`;
+        }
+      } catch (error) {
+        document.getElementById('dashboard-content').innerHTML = `<p class="alert alert-error">Error loading coupons: ${error.message}</p>`;
+      }
+    }
+
+    function showCreateCouponForm() {
+      document.getElementById('create-coupon-form').style.display = 'block';
+    }
+
+    function hideCreateCouponForm() {
+      document.getElementById('create-coupon-form').style.display = 'none';
+      document.getElementById('create-coupon-alert').innerHTML = '';
+      document.getElementById('new-coupon-code').value = '';
+      document.getElementById('new-coupon-percentage').value = '';
+      document.getElementById('new-coupon-scope').value = 'all';
+      document.getElementById('new-coupon-author').value = '';
+      document.getElementById('new-coupon-validFrom').value = '';
+      document.getElementById('new-coupon-validTo').value = '';
+      document.getElementById('author-select-group').style.display = 'none';
+    }
+
+    function toggleAuthorSelect() {
+      const scope = document.getElementById('new-coupon-scope').value;
+      const authorGroup = document.getElementById('author-select-group');
+      if (scope === 'author') {
+        authorGroup.style.display = 'block';
+      } else {
+        authorGroup.style.display = 'none';
+        document.getElementById('new-coupon-author').value = '';
+      }
+    }
+
+    async function createCoupon() {
+      const alertContainer = document.getElementById('create-coupon-alert');
+      alertContainer.innerHTML = '';
+
+      const code = document.getElementById('new-coupon-code').value.trim();
+      const discountPercentage = document.getElementById('new-coupon-percentage').value;
+      const scope = document.getElementById('new-coupon-scope').value;
+      const author = document.getElementById('new-coupon-author').value;
+      const validFrom = document.getElementById('new-coupon-validFrom').value;
+      const validTo = document.getElementById('new-coupon-validTo').value;
+
+      if (!code || !discountPercentage) {
+        alertContainer.innerHTML = '<div class="alert alert-error">Code and discount percentage are required</div>';
+        return;
+      }
+
+      if (scope === 'author' && !author) {
+        alertContainer.innerHTML = '<div class="alert alert-error">Please select an author</div>';
+        return;
+      }
+
+      try {
+        const couponData = {
+          code,
+          discountPercentage: parseFloat(discountPercentage),
+          scope
+        };
+
+        if (scope === 'author') couponData.author = author;
+        if (validFrom) couponData.validFrom = validFrom;
+        if (validTo) couponData.validTo = validTo;
+
+        await adminAPI.createCoupon(couponData);
+        alert('Coupon created successfully!');
+        hideCreateCouponForm();
+        loadCoupons();
+      } catch (error) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+      }
+    }
+
+    async function toggleCouponStatus(couponId) {
+      try {
+        await adminAPI.toggleCoupon(couponId);
+        loadCoupons();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function deleteCoupon(couponId) {
+      if (!confirm('Are you sure you want to delete this coupon? This action cannot be undone.')) return;
+      try {
+        await adminAPI.deleteCoupon(couponId);
+        alert('Coupon deleted successfully');
+        loadCoupons();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAdminDashboard();
+    });
+  </script>
+</body>
+</html>

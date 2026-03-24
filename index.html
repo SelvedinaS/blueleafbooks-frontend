@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=1">
+  <title>BlueLeafBooks – Digital Book Marketplace</title>
+  <meta name="description" content="Discover and buy digital books from independent authors. Sell your own PDF books with only 5% platform fee.">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/store">Store</a></li>
+        <li><a href="/cart">Cart</a></li>
+        <li><a href="/for-authors">For Authors</a></li>
+        <li><a href="/support">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Welcome to BlueLeafBooks</h1>
+    <p>Discover and purchase amazing digital books from talented authors</p>
+    <a href="/store" class="btn btn-primary">Browse Books</a>
+    <a href="/for-authors" class="btn btn-secondary" style="margin-left: 0.5rem;">Sell your books</a>
+  </div>
+
+  <div class="container">
+
+
+
+<section class="section" style="margin-top:2rem;">
+  <h2 class="section-title">Digital Books Marketplace</h2>
+  <p>
+    BlueLeafBooks is a simple digital marketplace where readers discover PDF books and authors sell directly with only 5% platform fee.
+  </p>
+</section>
+
+
+
+    <section class="section">
+      <h2 class="section-title">Featured Picks</h2>
+      <div id="curated-books" class="books-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Best Sellers</h2>
+      <div id="bestsellers" class="books-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Newly Added</h2>
+      <div id="new-books" class="books-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Top Rated</h2>
+      <div id="top-rated-books" class="books-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Browse by Category</h2>
+      <div id="categories" style="display: flex; gap: 1rem; flex-wrap: wrap;"></div>
+    </section>
+  </div>
+
+  <script src="/js/api.js?v=3"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/bookGenres.js?v=1"></script>
+  <script src="/js/books.js?v=3"></script>
+
+  <script>
+    function showEmpty(containerId, msg) {
+      const el = document.getElementById(containerId);
+      if (el) el.innerHTML = `<p style="color:#666;">${msg}</p>`;
+    }
+
+    async function loadCurated() {
+      try {
+        const books = await booksAPI.getCurated(12);
+        displayBooks(books, 'curated-books');
+      } catch (error) {
+        console.error('Error loading curated:', error);
+        showEmpty('curated-books', "Couldn’t load featured books right now.");
+      }
+    }
+
+    async function loadBestsellers() {
+      try {
+        const books = await booksAPI.getBestsellers();
+        displayBooks(books, 'bestsellers');
+      } catch (error) {
+        console.error('Error loading bestsellers:', error);
+        showEmpty('bestsellers', "Couldn’t load bestsellers right now.");
+      }
+    }
+
+    async function loadNewBooks() {
+      try {
+        const books = await booksAPI.getNew();
+        displayBooks(books, 'new-books');
+      } catch (error) {
+        console.error('Error loading new books:', error);
+        showEmpty('new-books', "Couldn’t load new books right now.");
+      }
+    }
+
+    async function loadTopRatedBooks() {
+      try {
+        const books = await booksAPI.getAll({ sortBy: 'rating', order: 'desc' });
+        displayBooks((books || []).slice(0, 8), 'top-rated-books');
+      } catch (error) {
+        console.error('Error loading top rated books:', error);
+        showEmpty('top-rated-books', "Couldn’t load top rated books right now.");
+      }
+    }
+
+    async function loadCategories() {
+      try {
+        let genres = [];
+        if (booksAPI && typeof booksAPI.getGenres === 'function') {
+          genres = await booksAPI.getGenres();
+        }
+        if ((!Array.isArray(genres) || !genres.length) && typeof getBookGenres === 'function') {
+          genres = getBookGenres();
+        }
+
+        const container = document.getElementById('categories');
+        container.innerHTML = (genres || []).map(genre => `
+          <a href="/store?genre=${encodeURIComponent(genre)}" class="btn btn-secondary">
+            ${genre}
+          </a>
+        `).join('');
+        if (!genres || !genres.length) showEmpty('categories', "No categories available.");
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        showEmpty('categories', "Couldn’t load categories right now.");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.querySelector(".menu-btn");
+      const nav = document.querySelector(".nav-links");
+
+      if (btn && nav) {
+        btn.addEventListener("click", () => {
+          nav.classList.toggle("open");
+          btn.setAttribute("aria-expanded", nav.classList.contains("open") ? "true" : "false");
+        });
+      }
+
+      loadCurated();
+      loadBestsellers();
+      loadNewBooks();
+      loadTopRatedBooks();
+      loadCategories();
+    });
+  </script>
+
+  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="/support" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
+        <a href="/privacy" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
+        <a href="/refund-policy" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
+        <a href="/terms" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms & Conditions</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>
