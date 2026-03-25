@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>Author Dashboard – BlueLeafBooks</title>
+  <meta name="description" content="Manage your books, sales, and payouts. Upload new titles and track performance.">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="author-dashboard.html">Dashboard</a></li>
+        <li><a href="store.html">Store</a></li>
+        <li><a href="for-authors.html">How it works</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="dashboard">
+      <button class="dashboard-menu-btn" type="button" aria-expanded="false" aria-controls="dashboard-sidebar">Menu</button>
+      <div class="dashboard-sidebar">
+        <h3>Author Dashboard</h3>
+        <ul>
+          <li><a href="author-dashboard.html" class="active">Overview</a></li>
+          <li><a href="author-upload.html">Upload Book</a></li>
+          <li><a href="store.html">Browse Store</a></li>
+          <li><a href="for-authors.html">How it works</a></li>
+        </ul>
+      </div>
+
+      <div class="dashboard-content">
+        <div id="dashboard-content">
+          <p class="loading">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/api.js?v=3"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/dashboard.js"></script>
+  <script>
+    // ✅ Security: protect page
+    requireAuth();
+    requireRole('author');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const menuBtn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (menuBtn && nav) {
+        menuBtn.addEventListener('click', () => { nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false'); });
+      }
+      const btn = document.querySelector('.dashboard-menu-btn');
+      const sidebar = document.querySelector('.dashboard-sidebar');
+      if (btn && sidebar) {
+        sidebar.id = 'dashboard-sidebar';
+        btn.addEventListener('click', () => { const open = sidebar.classList.toggle('is-open'); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+      }
+      loadAuthorDashboard();
+    });
+  </script>
+
+  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="support.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
+        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
+        <a href="refund-policy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
+        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms &amp; Conditions</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

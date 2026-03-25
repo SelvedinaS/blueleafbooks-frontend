@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>Terms &amp; Conditions – BlueLeafBooks</title>
+  <meta name="description" content="Terms of use for BlueLeafBooks: accounts, purchases, author agreements, and refunds.">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="store.html">Store</a></li>
+        <li><a href="cart.html">Cart</a></li>
+        <li><a href="for-authors.html">For Authors</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+
+<div class="container">
+  <div class="page-card">
+
+    <main class="legal-page">
+      <h1>Terms & Conditions</h1>
+      <p><strong>Last updated:</strong> March 2026</p>
+
+      <h2>1. Introduction</h2>
+      <p>BlueLeafBooks is a digital marketplace where authors upload and sell digital PDF books, and customers purchase downloadable content through the platform.</p>
+
+      <h2>2. Nature of the Platform</h2>
+      <p>BlueLeafBooks operates as an intermediary marketplace. Payments are processed via third-party providers.</p>
+
+      <h2>3. User Accounts</h2>
+      <p>Users are responsible for their account credentials.</p>
+
+      <h2>4. Payments</h2>
+      <p>Customers must provide valid payment details. Authors must maintain accurate account and payout-related information. BlueLeafBooks may require a valid PayPal email before author content is approved or remains visible on the platform.</p>
+
+      <h2>5. Platform Fee</h2>
+      <p>A fixed 5% platform fee is applied to each completed sale made through the platform.</p>
+
+      <h2>6. Monthly Settlement</h2>
+      <p>Authors must settle the total platform fee owed for the previous calendar month between the 1st and 10th day of the following month.</p>
+
+      <h2>7. Late Payment</h2>
+      <p>If payment is not completed by the deadline, BlueLeafBooks may block the author account, prevent new uploads, and hide the author’s books until the outstanding balance is settled.</p>
+
+      <h2>8. Author Responsibility</h2>
+      <p>Authors are responsible for content, legality, and copyrights.</p>
+
+      <h2>9. Customer Access</h2>
+      <p>Access is granted after successful payment.</p>
+
+      <h2>10. Refunds</h2>
+      <p>Refunds are generally not provided for digital products.</p>
+
+      <h2>11. Platform Rights</h2>
+      <p>We may remove or restrict accounts or content.</p>
+
+      <h2>12. Account Termination</h2>
+      <p>Accounts may be terminated for violations or non-payment.</p>
+
+      <h2>13. Intellectual Property</h2>
+      <p>All platform content belongs to BlueLeafBooks.</p>
+
+      <h2>14. No Guarantee of Sales</h2>
+      <p>No guaranteed earnings or traffic.</p>
+
+      <h2>15. Limitation of Liability</h2>
+      <p>Platform provided “as is”.</p>
+
+      <h2>16. Taxes</h2>
+      <p>Authors are responsible for taxes.</p>
+
+      <h2>17. Governing Law</h2>
+      <p>Governed by laws of Bosnia and Herzegovina.</p>
+
+      <h2>18. Changes</h2>
+      <p>Terms may be updated.</p>
+
+      <h2>19. Contact</h2>
+      <p><a href="mailto:blueleafbooks@hotmail.com">blueleafbooks@hotmail.com</a></p>
+
+    </main>
+
+  </div>
+</div>
+
+
+<footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+    <div class="container" style="text-align: center; color: #666;">
+      <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
+      <p style="margin-top: 0.5rem;">
+        <a href="support.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
+        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
+        <a href="refund-policy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
+        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms & Conditions</a>
+      </p>
+    </div>
+  </footer>
+
+
+
+  <script src="./js/api.js?v=3"></script>
+  <script src="./js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.querySelector('.menu-btn');
+      const nav = document.querySelector('.nav-links');
+      if (btn && nav) {
+        btn.addEventListener('click', () => {
+          nav.classList.toggle('open');
+          btn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+        });
+      }
+    });
+  </script>
+</body>
+</html>
