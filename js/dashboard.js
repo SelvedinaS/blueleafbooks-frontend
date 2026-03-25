@@ -380,7 +380,7 @@ async function displayAuthorDashboard(data) {
       </div>
       <div id="payout-settings-alert"></div>
       <div class="form-group" style="max-width:520px;">
-        <label for="payout-paypal-email">Your PayPal email (required for author account verification and payout information)</label>
+        <label for="payout-paypal-email">Your PayPal email (required for author account verification and account records)</label>
         <input
           id="payout-paypal-email"
           type="email"
