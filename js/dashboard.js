@@ -254,18 +254,29 @@ async function displayAuthorDashboard(data) {
   const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
   const adminEmail = data.adminPaymentEmail || 'blueleafbooks@hotmail.com';
-  const isTrial = false;
+  const minimumPayoutThreshold = 25;
 
-  const lastMonthFee = money(data.lastMonth?.feeDue);
-  const currentMonthAccrued = money(data.currentMonth?.feeAccrued);
+  const lastMonthFee = Number(data.lastMonth?.feeDue || 0);
+  const currentMonthFee = Number(data.currentMonth?.feeAccrued || 0);
+  const lastMonthGross = Number(data.lastMonth?.grossSales || 0);
+  const currentMonthGross = Number(data.currentMonth?.grossSalesAccrued || 0);
+  const lastMonthPayoutAmount = money(Math.max(0, lastMonthGross - lastMonthFee));
+  const currentMonthEstimatedPayout = money(Math.max(0, currentMonthGross - currentMonthFee));
 
   const lastMonthPeriod = data.lastMonth?.period || '-';
-  const lastMonthDue = fmtDate(data.lastMonth?.dueDate);
-  const lastMonthOverdue = !!data.lastMonth?.overdue;
   const lastMonthPaid = !!data.lastMonth?.status?.isPaid;
+  const lastMonthPayoutDate = data.lastMonth?.period ? (() => {
+    const end = data.lastMonth?.end ? new Date(data.lastMonth.end) : null;
+    if (!end || Number.isNaN(end.getTime())) return '-';
+    return new Date(end.getFullYear(), end.getMonth(), 1).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  })() : '-';
 
   const currentMonthPeriod = data.currentMonth?.period || '-';
-  const currentMonthDue = fmtDate(data.currentMonth?.dueDate);
+  const nextPayoutDate = data.currentMonth?.end ? (() => {
+    const end = new Date(data.currentMonth.end);
+    if (Number.isNaN(end.getTime())) return '-';
+    return new Date(end.getFullYear(), end.getMonth(), 1).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  })() : '-';
 
   const topBook = data.topBook || null;
   const topRatedBook = data.topRatedBook || null;
@@ -274,7 +285,7 @@ async function displayAuthorDashboard(data) {
     <div class="section-header">
       <div>
         <div class="page-title">Overview</div>
-        <div class="page-subtitle">Your books, sales, and platform fee status.</div>
+        <div class="page-subtitle">Your books, sales, payout balance, and monthly payout schedule.</div>
       </div>
     </div>
 
@@ -292,7 +303,7 @@ async function displayAuthorDashboard(data) {
         <div class="value">${money(data.totalEarnings)}</div>
       </div>
       <div class="kpi">
-        <div class="label">Unpaid Earnings</div>
+        <div class="label">Pending Payout Balance</div>
         <div class="value">${money(data.unpaidEarnings)}</div>
       </div>
       <div class="kpi">
@@ -309,48 +320,48 @@ async function displayAuthorDashboard(data) {
 
     <div class="section-card">
       <div class="section-header">
-        <h2>Platform Fee (5%)</h2>
+        <h2>Monthly Payouts</h2>
       </div>
 
       <p class="muted">
-        BlueLeafBooks charges a fixed <strong>5%</strong> platform fee on each completed sale.
-        You pay the <strong>previous month</strong> by the <strong>10th of the next month</strong>.
+        BlueLeafBooks receives customer payments, deducts a fixed <strong>5%</strong> platform fee on each completed sale,
+        and processes eligible author payouts on or around the <strong>1st of each month</strong>.
+        Balances below <strong>$${minimumPayoutThreshold}</strong> may be carried forward to the next payout cycle.
       </p>
 
       <div class="btn-row" style="margin-top:0.75rem;">
         <div>
-          <div class="muted" style="font-size:0.9rem;">Payment email</div>
+          <div class="muted" style="font-size:0.9rem;">Platform support</div>
           <div style="font-weight:900; color:#0052cc;">${adminEmail}</div>
         </div>
 
         <div>
           <div class="muted" style="font-size:0.9rem;">Fee rate</div>
-          <div style="font-weight:800;">5% platform fee</div>
+          <div style="font-weight:800;">5% deducted before payout</div>
         </div>
       </div>
 
       <div class="fee-grid">
         <div class="fee-box">
-          <div class="muted" style="font-size:0.9rem;">Amount due (last month)</div>
-          <div class="fee-amount">${lastMonthFee}</div>
+          <div class="muted" style="font-size:0.9rem;">Previous month estimated payout</div>
+          <div class="fee-amount">${lastMonthPayoutAmount}</div>
           <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">
-            Period: ${lastMonthPeriod} · Due by: ${lastMonthDue}
-            ${lastMonthOverdue ? '<span class="badge badge-danger" style="margin-left:0.4rem;">OVERDUE</span>' : ''}
+            Period: ${lastMonthPeriod} · Payout date: ${lastMonthPayoutDate}
           </div>
           <div style="margin-top:0.35rem;">
             Status:
-            ${lastMonthPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">UNPAID</span>'}
+            ${lastMonthPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">PENDING</span>'}
           </div>
         </div>
 
         <div class="fee-box">
-          <div class="muted" style="font-size:0.9rem;">Current month (accrued)</div>
-          <div class="fee-amount">${currentMonthAccrued}</div>
+          <div class="muted" style="font-size:0.9rem;">Current month estimated payout</div>
+          <div class="fee-amount">${currentMonthEstimatedPayout}</div>
           <div class="muted" style="font-size:0.9rem; margin-top:0.25rem;">
-            Period: ${currentMonthPeriod} · Due by: ${currentMonthDue}
+            Period: ${currentMonthPeriod} · Expected payout: ${nextPayoutDate}
           </div>
           <div class="muted" style="font-size:0.9rem; margin-top:0.35rem;">
-            Current-month sales are being tracked and will be due next month.
+            Current-month sales are still being tracked. Balances below $${minimumPayoutThreshold} roll forward automatically.
           </div>
         </div>
       </div>
@@ -380,7 +391,7 @@ async function displayAuthorDashboard(data) {
       </div>
       <div id="payout-settings-alert"></div>
       <div class="form-group" style="max-width:520px;">
-        <label for="payout-paypal-email">Your PayPal email (required for author account verification and account records)</label>
+        <label for="payout-paypal-email">Your PayPal email (required for author account verification and monthly payouts)</label>
         <input
           id="payout-paypal-email"
           type="email"

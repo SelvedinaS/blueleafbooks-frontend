@@ -3,71 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=1">
-  <title>Support & Contact – BlueLeafBooks</title>
-  <meta name="description" content="Contact BlueLeafBooks for purchases, author support, refunds, and technical help.">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+  <title>Support &amp; Contact – BlueLeafBooks</title>
+  <meta name="description" content="Contact BlueLeafBooks support for purchases, author payouts, payment issues, and technical questions.">
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
   <header>
     <nav>
-      <a href="/" class="logo">BlueLeafBooks</a>
+      <a href="../index.html" class="logo">BlueLeafBooks</a>
       <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
-        <li><a href="/">Home</a></li>
-        <li><a href="/store">Store</a></li>
-        <li><a href="/cart">Cart</a></li>
-        <li><a href="/for-authors">For Authors</a></li>
-        <li><a href="/support" aria-current="page">Support</a></li>
+        <li><a href="../index.html">Home</a></li>
+        <li><a href="../store.html">Store</a></li>
+        <li><a href="../cart.html">Cart</a></li>
+        <li><a href="../for-authors.html">For Authors</a></li>
+        <li><a href="../support.html" class="active">Support</a></li>
       </ul>
     </nav>
   </header>
 
   <div class="container">
     <div class="page-card">
-      <h1>Support &amp; Contact</h1>
-      <p class="muted">
-        For inquiries related to BlueLeafBooks, please use the contact information below.
-      </p>
+      <main class="legal-page">
+        <h1>Support &amp; Contact</h1>
+        <p>For inquiries related to BlueLeafBooks, please use the contact information below.</p>
 
-      <h2>Contact</h2>
-      <p>
-        For customer support, author inquiries, payment-related issues, or general questions, please contact us by email:
-      </p>
+        <h2>Contact</h2>
+        <p>For customer support, author inquiries, payment-related issues, payout questions, or general questions, please contact us by email:</p>
+        <p><strong>Email:</strong> <a href="mailto:blueleafbooks@hotmail.com">blueleafbooks@hotmail.com</a></p>
+        <p>To allow proper review, please include relevant details in your message, such as your account email, order reference, payout period, book title, and a brief description of the issue.</p>
 
-      <p style="margin: 1.5rem 0;">
-        <strong>Email:</strong>
-        <a href="mailto:blueleafbooks@hotmail.com" class="btn btn-primary" style="margin-left: 0.5rem; display: inline-block;">
-          blueleafbooks@hotmail.com
-        </a>
-      </p>
-
-      <p class="muted" style="margin-top: 0;">
-        To allow proper review, please include relevant details in your message (e.g., your account email, order reference, and a brief description of the issue).
-      </p>
-
-      <h2>Support topics</h2>
-      <ul>
-        <li><strong>Purchases:</strong> Order verification, access to purchased content, download issues, refund-related inquiries (where applicable)</li>
-        <li><strong>Authors:</strong> Publishing requirements, platform fee, settlement records, fee-payment questions, and account-related matters</li>
-        <li><strong>Technical:</strong> Login issues, payment errors, and platform functionality concerns</li>
-      </ul>
+        <h2>Support Topics</h2>
+        <ul>
+          <li><strong>Purchases:</strong> Order verification, access to purchased content, download issues, and refund-related inquiries where applicable</li>
+          <li><strong>Authors:</strong> Publishing requirements, sales records, monthly payout status, payout details, rollover balances, and account-related matters</li>
+          <li><strong>Technical:</strong> Login issues, payment errors, payout setting questions, and platform functionality concerns</li>
+        </ul>
+      </main>
     </div>
   </div>
 
-  <footer style="background-color: var(--white); border-top: 1px solid var(--border-color); padding: 2rem 0; margin-top: 3rem;">
+  <footer style="padding: 2rem 0; margin-top: 2rem; background: #f8f9fa; border-top: 1px solid #ddd;">
     <div class="container" style="text-align: center; color: #666;">
       <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
       <p style="margin-top: 0.5rem;">
-        <a href="/support" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
-        <a href="/privacy" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
-        <a href="/refund-policy" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
-        <a href="/terms" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms &amp; Conditions</a>
+        <a href="../support.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
+        <a href="../privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
+        <a href="../refund-policy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
+        <a href="../terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms &amp; Conditions</a>
       </p>
     </div>
   </footer>
 
-  <script src="/js/auth.js"></script>
+  <script src="../js/auth.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const btn = document.querySelector('.menu-btn');
