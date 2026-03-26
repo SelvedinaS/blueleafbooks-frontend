@@ -326,7 +326,11 @@ async function displayAuthorDashboard(data) {
       <p class="muted">
         BlueLeafBooks receives customer payments, deducts a fixed <strong>5%</strong> platform fee on each completed sale,
         and processes eligible author payouts on or around the <strong>1st of each month</strong>.
-        Balances below <strong>$${minimumPayoutThreshold}</strong> may be carried forward to the next payout cycle.
+        Balances below <strong>$${minimumPayoutThreshold}</strong> are automatically carried forward to the next payout cycle.
+      </p>
+
+      <p class="muted" style="margin-top:0.6rem;">
+        Payouts are processed manually by BlueLeafBooks based on completed and verified sales.
       </p>
 
       <div class="btn-row" style="margin-top:0.75rem;">
@@ -337,7 +341,7 @@ async function displayAuthorDashboard(data) {
 
         <div>
           <div class="muted" style="font-size:0.9rem;">Fee rate</div>
-          <div style="font-weight:800;">5% deducted before payout</div>
+          <div style="font-weight:800;">5% platform fee (calculated from total sales)</div>
         </div>
       </div>
 
@@ -352,6 +356,7 @@ async function displayAuthorDashboard(data) {
             Status:
             ${lastMonthPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">PENDING</span>'}
           </div>
+          ${!lastMonthPaid ? `<div class="muted" style="font-size:0.85rem; margin-top:0.45rem;">Payout will be processed at the beginning of the next month if the minimum threshold is reached.</div>` : ''}
         </div>
 
         <div class="fee-box">
