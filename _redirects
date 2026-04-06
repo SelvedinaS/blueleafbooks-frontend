@@ -1,4 +1,23 @@
-/index.html  /
+/index.html /
+
+/store.html /store 301
+/login.html /login 301
+/register.html /register 301
+/cart.html /cart 301
+/checkout.html /checkout 301
+/admin-dashboard.html /admin-dashboard 301
+/author-dashboard.html /author-dashboard 301
+/customer-dashboard.html /customer-dashboard 301
+/author-upload.html /author-upload 301
+/book-details.html /book-details 301
+/for-authors.html /for-authors 301
+/terms.html /terms 301
+/privacy.html /privacy 301
+/support.html /support 301
+/refund-policy.html /refund-policy 301
+/forgot-password.html /forgot-password 301
+/reset-password.html /reset-password 301
+/download.html /download 301
 
 /login /login.html 200
 /register /register.html 200
