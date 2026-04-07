@@ -10,14 +10,14 @@
 <body>
   <header>
     <nav>
-      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <a href="/" class="logo">BlueLeafBooks</a>
       <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="author-dashboard.html">Dashboard</a></li>
-        <li><a href="store.html">Store</a></li>
-        <li><a href="for-authors.html">How it works</a></li>
-        <li><a href="support.html">Support</a></li>
+        <li><a href="/">Home</a></li>
+        <li><a href="/author-dashboard">Dashboard</a></li>
+        <li><a href="/store">Store</a></li>
+        <li><a href="/for-authors">How it works</a></li>
+        <li><a href="/support">Support</a></li>
       </ul>
     </nav>
   </header>
@@ -29,7 +29,7 @@
 
       <div id="paypal-section" class="form-group" style="background:#f8f9fa;padding:1rem;border-radius:8px;margin-bottom:1.5rem;display:none;">
         <label><strong>PayPal email (required for author verification and monthly payouts)</strong></label>
-        <p class="muted" style="font-size:0.9rem;margin:0.25rem 0 0.5rem 0;">This address is used for author verification, monthly payout processing, support, and account administration. You can also change it in <a href="author-dashboard.html">Dashboard → Payout Settings</a>.</p>
+        <p class="muted" style="font-size:0.9rem;margin:0.25rem 0 0.5rem 0;">This address is used for author verification, monthly payout processing, support, and account administration. You can also change it in <a href="/author-dashboard">Dashboard → Payout Settings</a>.</p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
           <input type="email" id="paypal-email" placeholder="your-paypal@email.com" style="flex:1;min-width:200px;padding:0.5rem;">
           <button type="button" id="save-paypal-btn" class="btn btn-secondary">Save PayPal</button>
@@ -211,7 +211,7 @@
           document.getElementById('price').value = book.price;
         } catch (error) {
           alert('Error loading book: ' + error.message);
-          window.location.href = 'author-dashboard.html';
+          window.location.href = '/author-dashboard';
         }
       }
 
@@ -255,7 +255,7 @@
             await booksAPI.create(formData);
             alert('Book submitted successfully! It is now live on the store.');
           }
-          window.location.href = 'author-dashboard.html';
+          window.location.href = '/author-dashboard';
         } catch (error) {
           alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
         }

@@ -52,7 +52,7 @@ function displayBooks(books, containerId) {
       if (daysOld !== null && daysOld <= 14) badges.push('<span class="badge" style="background:#e0f2fe;color:#075985;">New</span>');
 
       return `
-        <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
+        <div class="book-card" onclick="window.location.href='/book-details?id=${book._id}'">
           <img src="${cover}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
           <div class="book-card-content">
@@ -155,7 +155,7 @@ function displayBookDetails(book) {
           !hasPrice || !hasPdf
             ? `<p class="alert alert-info">This book is not available for purchase at the moment.</p>`
             : !user
-            ? `<p class="alert alert-info">Please <a href="login.html">login</a> to purchase this book.</p>`
+            ? `<p class="alert alert-info">Please <a href="/login">login</a> to purchase this book.</p>`
             : isCustomer
             ? `
                 <button class="btn btn-primary" onclick="buyNow('${book._id}')" style="margin-right: 0.5rem;">Buy Now</button>
@@ -376,12 +376,12 @@ function buyNow(bookId) {
   }
 
   updateCartCount();
-  window.location.href = 'checkout.html';
+  window.location.href = '/checkout';
 }
 
 function updateCartCount() {
   const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-  const cartLink = document.querySelector('a[href="cart.html"]');
+  const cartLink = document.querySelector('a[href="/cart"]');
   if (!cartLink) return;
 
   const count = cart.length;
@@ -397,7 +397,7 @@ async function loadGenres() {
     if (!select) return;
 
     // Keep genres already hard-coded in HTML.
-    // This prevents JS from wiping out the full list that already exists in store.html.
+    // This prevents JS from wiping out the full list that already exists in /store.
     const existingValues = Array.from(select.options || [])
       .map((option) => String(option.value || '').trim())
       .filter(Boolean);
@@ -464,7 +464,7 @@ async function loadCuratedBooks() {
         const price = Number(book?.price || 0).toFixed(2);
 
         return `
-          <div class="book-card" onclick="window.location.href='book-details.html?id=${book._id}'">
+          <div class="book-card" onclick="window.location.href='/book-details?id=${book._id}'">
             <img src="${cover}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                  onerror="this.onerror=null;this.src='${PLACEHOLDER}'">
             <div class="book-card-content">

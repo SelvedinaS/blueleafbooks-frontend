@@ -11,14 +11,14 @@
 <body>
   <header>
     <nav>
-      <a href="index.html" class="logo">BlueLeafBooks</a>
+      <a href="/" class="logo">BlueLeafBooks</a>
       <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="store.html">Store</a></li>
-        <li><a href="cart.html">Cart</a></li>
-        <li><a href="for-authors.html">For Authors</a></li>
-        <li><a href="support.html">Support</a></li>
+        <li><a href="/">Home</a></li>
+        <li><a href="/store">Store</a></li>
+        <li><a href="/cart">Cart</a></li>
+        <li><a href="/for-authors">For Authors</a></li>
+        <li><a href="/support">Support</a></li>
       </ul>
     </nav>
   </header>
@@ -50,7 +50,7 @@
         <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
       </form>
       <p style="margin-top: 1rem; text-align: center;">
-        Already have an account? <a href="login.html">Login here</a>
+        Already have an account? <a href="/login">Login here</a>
       </p>
     </div>
   </div>
@@ -77,11 +77,11 @@
         
         // Redirect based on role
         if (response.user.role === 'customer') {
-          window.location.href = 'customer-dashboard.html';
+          window.location.href = '/customer-dashboard';
         } else if (response.user.role === 'author') {
-          window.location.href = 'author-dashboard.html';
+          window.location.href = '/author-dashboard';
         } else {
-          window.location.href = 'index.html';
+          window.location.href = '/';
         }
       } catch (error) {
         alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
@@ -104,10 +104,10 @@
     <div class="container" style="text-align: center; color: #666;">
       <p>&copy; 2026 BlueLeafBooks. All rights reserved.</p>
       <p style="margin-top: 0.5rem;">
-        <a href="support.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
-        <a href="privacy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
-        <a href="refund-policy.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
-        <a href="terms.html" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms & Conditions</a>
+        <a href="/support" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Support</a>
+        <a href="/privacy" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Privacy Policy</a>
+        <a href="/refund-policy" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Refund Policy</a>
+        <a href="/terms" style="color: var(--primary-color); text-decoration: none; margin: 0 0.5rem;">Terms & Conditions</a>
       </p>
     </div>
   </footer>
