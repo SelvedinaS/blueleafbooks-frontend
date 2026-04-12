@@ -110,6 +110,14 @@
           <input type="file" id="pdfFile" name="pdfFile" accept=".pdf">
         </div>
 
+        <div id="demo-book-wrap" class="form-group" style="display:none;">
+          <label style="display:flex;align-items:center;gap:0.5rem;">
+            <input type="checkbox" id="isDemo" name="isDemo">
+            <span>Save as demo book</span>
+          </label>
+          <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">Demo books are useful for filling the store before real authors join.</p>
+        </div>
+
         <button type="submit" class="btn btn-primary" style="width: 100%;" disabled title="Set your PayPal email above to publish books">Submit Book</button>
       </form>
     </div>
@@ -121,9 +129,15 @@
   <script src="/js/books.js?v=3"></script>
   <script>
     requireAuth();
-    requireRole('author');
 
     let hasPaypal = false;
+    const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const isAdmin = currentUser?.role === 'admin';
+    const isAuthor = currentUser?.role === 'author';
+
+    if (!isAdmin && !isAuthor) {
+      window.location.href = '/login';
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       const menuBtn = document.querySelector('.menu-btn');
@@ -136,8 +150,15 @@
       const isEditMode = !!bookId;
 
       populateGenreOptions();
-      loadPaypalSettings();
-      document.getElementById('save-paypal-btn').addEventListener('click', savePaypalSettings);
+      if (isAdmin) {
+        const demoWrap = document.getElementById('demo-book-wrap');
+        if (demoWrap) demoWrap.style.display = 'block';
+        hasPaypal = true;
+        updateSubmitState();
+      } else {
+        loadPaypalSettings();
+        document.getElementById('save-paypal-btn').addEventListener('click', savePaypalSettings);
+      }
 
       if (isEditMode) {
         document.getElementById('form-title').textContent = 'Edit Book';
@@ -161,10 +182,10 @@
           hasPaypal = !!email;
           document.getElementById('paypal-email').value = email;
           const section = document.getElementById('paypal-section');
-          if (section) section.style.display = hasPaypal ? 'none' : 'block';
+          if (section) section.style.display = hasPaypal || isAdmin ? 'none' : 'block';
           updateSubmitState();
         } catch (e) {
-          document.getElementById('paypal-section').style.display = 'block';
+          if (!isAdmin) document.getElementById('paypal-section').style.display = 'block';
           document.getElementById('paypal-alert').innerHTML = '<span class="alert alert-error">Could not load PayPal settings.</span>';
           updateSubmitState();
         }
@@ -173,8 +194,8 @@
       function updateSubmitState() {
         const btn = document.querySelector('#book-form button[type="submit"]');
         if (btn) {
-          btn.disabled = !hasPaypal;
-          btn.title = hasPaypal ? '' : 'Set your PayPal email above to publish books';
+          btn.disabled = !(hasPaypal || isAdmin);
+          btn.title = (hasPaypal || isAdmin) ? '' : 'Set your PayPal email above to publish books';
         }
       }
 
@@ -209,6 +230,7 @@
           document.getElementById('description').value = book.description;
           populateGenreOptions(book.genre);
           document.getElementById('price').value = book.price;
+          if (isAdmin && document.getElementById('isDemo')) document.getElementById('isDemo').checked = !!book.isDemo;
         } catch (error) {
           alert('Error loading book: ' + error.message);
           window.location.href = '/author-dashboard';
@@ -218,7 +240,7 @@
       document.getElementById('book-form').addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        if (!hasPaypal) {
+        if (!(hasPaypal || isAdmin)) {
           document.getElementById('alert-container').innerHTML = '<div class="alert alert-error">You must set your PayPal email before publishing. Enter it above and click Save PayPal.</div>';
           return;
         }
@@ -234,6 +256,9 @@
 
         const coverFile = document.getElementById('coverImage').files[0];
         const pdfFile = document.getElementById('pdfFile').files[0];
+
+        const isDemo = isAdmin && !!document.getElementById('isDemo')?.checked;
+        if (isDemo) formData.append('isDemo', 'true');
 
         if (isEditMode) {
           if (coverFile) formData.append('coverImage', coverFile);
@@ -255,7 +280,7 @@
             await booksAPI.create(formData);
             alert('Book submitted successfully! It is now live on the store.');
           }
-          window.location.href = '/author-dashboard';
+          window.location.href = isAdmin ? '/admin-dashboard' : '/author-dashboard';
         } catch (error) {
           alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
         }

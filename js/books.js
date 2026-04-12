@@ -47,6 +47,7 @@ function displayBooks(books, containerId) {
       const createdAt = book?.createdAt ? new Date(book.createdAt) : null;
       const daysOld = createdAt ? Math.floor((Date.now() - createdAt.getTime()) / 86400000) : null;
       const badges = [];
+      if (book?.isDemo) badges.push('<span class="badge" style="background:#ede9fe;color:#5b21b6;">Demo</span>');
       if (salesCount >= 1) badges.push('<span class="badge badge-success">Bestseller</span>');
       if (ratingCount >= 3 && Number(book?.rating || 0) >= 4) badges.push('<span class="badge badge-warning">Top Rated</span>');
       if (daysOld !== null && daysOld <= 14) badges.push('<span class="badge" style="background:#e0f2fe;color:#075985;">New</span>');
@@ -124,6 +125,7 @@ function displayBookDetails(book) {
   const salesCount = Number(book?.salesCount || 0);
   const isBestseller = salesCount >= 1;
   const isTopRated = ratingCount >= 3 && Number(book?.rating || 0) >= 4;
+  const isDemo = !!book?.isDemo;
 
   container.innerHTML = `
     <div class="book-details">
@@ -137,6 +139,7 @@ function displayBookDetails(book) {
         <h1>${title}</h1>
         <div class="author">By ${authorName}</div>
         <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin:0.5rem 0 0.2rem;">
+          ${isDemo ? '<span class="badge" style="background:#ede9fe;color:#5b21b6;">Demo Book</span>' : ''}
           ${isBestseller ? '<span class="badge badge-success">Bestseller</span>' : ''}
           ${isTopRated ? '<span class="badge badge-warning">Top Rated</span>' : ''}
         </div>

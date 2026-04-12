@@ -596,7 +596,7 @@ function displayAuthorBooks(books) {
             <div class="mobile-card">
               <div class="mobile-card-header">
                 <div>
-                  <div class="mobile-card-title">${isDeleted ? '[DELETED] ' : ''}${book.title || '-'}</div>
+                  <div class="mobile-card-title">${book.isDemo ? '[DEMO] ' : ''}${isDeleted ? '[DELETED] ' : ''}${book.title || '-'}</div>
                   <div class="mobile-card-subtitle">
                     <span class="badge ${badgeClass}">${statusLabel}</span>
                     <span style="margin-left:8px;">$${Number(book.price || 0).toFixed(2)}</span>
@@ -678,7 +678,7 @@ function displayAuthorBooks(books) {
                     onerror="this.onerror=null;this.src='https://via.placeholder.com/52x66?text=No+Cover';"
                   >
                 </td>
-                <td>${isDeleted ? '[DELETED] ' + (book.title || '-') : (book.title || '-')}</td>
+                <td>${book.isDemo ? '[DEMO] ' : ''}${isDeleted ? '[DELETED] ' + (book.title || '-') : (book.title || '-')}</td>
                 <td>${book.genre || '-'}</td>
                 <td>$${Number(book.price || 0).toFixed(2)}</td>
                 <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
@@ -776,13 +776,6 @@ function displayAdminDashboard(data) {
           ${topRatedBooks.length ? topRatedBooks.map((book, index) => `<div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.45rem 0;border-bottom:${index === topRatedBooks.length - 1 ? '0' : '1px solid #eef2f7'};"><span>${index + 1}. ${book.title}</span><strong>${Number(book.rating || 0).toFixed(1)}/5</strong></div>`).join('') : '<div class="muted" style="margin-top:0.4rem;">No ratings yet.</div>'}
         </div>
       </div>
-    </div>
-
-    <div class="section-card" style="margin-bottom:1rem;">
-      <h3>Tools</h3>
-      <p style="margin-bottom:0.5rem;">Fix slike/PDF URL-ove (fral→fra1, geun→geum) u bazi.</p>
-      <button class="btn btn-secondary" type="button" onclick="fixBookUrls()">Fix Book URLs</button>
-      <span id="fix-urls-result" style="margin-left:0.5rem;"></span>
     </div>
 
     <div class="section-card">
