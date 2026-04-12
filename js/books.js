@@ -155,14 +155,16 @@ function displayBookDetails(book) {
         <div class="genre"><strong>Genre:</strong> ${genre}</div>
 
         ${
-          !hasPrice || !hasPdf
+          isDemo
+            ? `<p class="alert alert-info">This is a demo book for platform preview.</p>`
+            : !hasPrice || !hasPdf
             ? `<p class="alert alert-info">This book is not available for purchase at the moment.</p>`
             : !user
             ? `<p class="alert alert-info">Please <a href="/login">login</a> to purchase this book.</p>`
             : isCustomer
             ? `
-                <button class="btn btn-primary" onclick="buyNow('${book._id}')" style="margin-right: 0.5rem;">Buy Now</button>
-                <button class="btn btn-secondary" onclick="addToCart('${book._id}')">Add to Cart</button>
+                <button class="btn btn-primary" onclick="buyNow('${book._id}', ${isDemo})" style="margin-right: 0.5rem;">Buy Now</button>
+                <button class="btn btn-secondary" onclick="addToCart('${book._id}', ${isDemo})">Add to Cart</button>
               `
             : ''
         }
@@ -356,7 +358,11 @@ async function submitBookRating(bookId, ratingValue) {
 /* =========================
    CART
 ========================= */
-function addToCart(bookId) {
+function addToCart(bookId, isDemo = false) {
+  if (isDemo) {
+    alert('Demo books cannot be purchased.');
+    return;
+  }
   const cart = JSON.parse(localStorage.getItem('cart') || '[]');
 
   if (cart.includes(bookId)) {
@@ -370,7 +376,11 @@ function addToCart(bookId) {
   updateCartCount();
 }
 
-function buyNow(bookId) {
+function buyNow(bookId, isDemo = false) {
+  if (isDemo) {
+    alert('Demo books cannot be purchased.');
+    return;
+  }
   const cart = JSON.parse(localStorage.getItem('cart') || '[]');
 
   if (!cart.includes(bookId)) {

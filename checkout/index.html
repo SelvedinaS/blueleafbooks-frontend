@@ -72,6 +72,13 @@
         const data = await safeJson(response);
 
         cartBooks = data || [];
+
+        if (cartBooks.some(book => !!book.isDemo)) {
+          document.getElementById('checkout-container').innerHTML =
+            '<p class="alert alert-error">Demo books cannot be purchased. Remove them from your cart and try again.</p>';
+          return;
+        }
+
         totalAmount = cartBooks.reduce((sum, book) => sum + (Number(book.price) || 0), 0);
 
         document.getElementById('checkout-container').innerHTML = `

@@ -76,6 +76,7 @@ function displayCartItems(books) {
         <div class="cart-item-info">
           <h3>${book.title}</h3>
           <p>${book.author?.name || 'Unknown Author'}</p>
+          ${book.isDemo ? '<div class="badge" style="margin-top:0.35rem;background:#ede9fe;color:#5b21b6;display:inline-block;">Demo</div>' : ''}
         </div>
         <div class="cart-item-price">
           <div>$${price.toFixed(2)}</div>
@@ -97,7 +98,7 @@ function removeFromCart(bookId) {
 
 // Calculate total
 function calculateTotal(books) {
-  const total = books.reduce((sum, book) => sum + Number(book.price || 0), 0);
+  const total = books.filter(book => !book.isDemo).reduce((sum, book) => sum + Number(book.price || 0), 0);
   const totalEl = document.getElementById('cart-total');
   if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
   document.getElementById('cart-summary').style.display = 'block';
@@ -109,6 +110,11 @@ function proceedToCheckout() {
 
   if (cart.length === 0) {
     alert('Your cart is empty!');
+    return;
+  }
+
+  if ((currentCartBooks || []).some(book => book.isDemo)) {
+    alert('Remove demo books from your cart before checkout.');
     return;
   }
 
