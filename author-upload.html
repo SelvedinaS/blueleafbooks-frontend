@@ -153,6 +153,8 @@
       if (isAdmin) {
         const demoWrap = document.getElementById('demo-book-wrap');
         if (demoWrap) demoWrap.style.display = 'block';
+        const demoCb = document.getElementById('isDemo');
+        if (demoCb && !bookId) demoCb.checked = true;
         hasPaypal = true;
         updateSubmitState();
       } else {

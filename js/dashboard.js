@@ -765,6 +765,15 @@ function displayAdminDashboard(data) {
     </div>
 
     <div class="section-card" style="margin-bottom:1rem;">
+      <h3>Store content</h3>
+      <p class="muted" style="margin-bottom:0.75rem;">
+        Add demo titles with cover + PDF (they appear in the store like any book). Check <strong>Save as demo book</strong> on the upload form so you can tell them apart in the admin book list.
+      </p>
+      <a href="/author-upload" class="btn btn-primary">Add demo book</a>
+      <a href="/store" class="btn btn-secondary" style="margin-left:0.5rem;">View store</a>
+    </div>
+
+    <div class="section-card" style="margin-bottom:1rem;">
       <h3>Sales Highlights</h3>
       <div class="fee-grid">
         <div class="fee-box">

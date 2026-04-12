@@ -14,6 +14,8 @@
       <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
       <ul class="nav-links">
         <li><a href="/">Home</a></li>
+        <li><a href="/store">Store</a></li>
+        <li><a href="/author-upload">Add demo book</a></li>
         <li><a href="/support">Support</a></li>
       </ul>
     </nav>
@@ -26,6 +28,7 @@
         <h3>Admin Panel</h3>
         <ul>
           <li><a href="#" onclick="showSection('overview', event); return false;" class="active">Overview</a></li>
+          <li><a href="/author-upload">Add demo book</a></li>
           <li><a href="#" onclick="showSection('books', event); return false;">All Books</a></li>
           <li><a href="#" onclick="showSection('authors', event); return false;">Authors</a></li>
           <li><a href="#" onclick="showSection('fees', event); return false;">Platform Fees</a></li>
@@ -135,7 +138,8 @@
         const s = book.isDeleted ? 'Deleted' : 'Live';
         const bg = book.isDeleted ? '#e2e3e5' : '#d4edda';
         const c = book.isDeleted ? '#6c757d' : '#155724';
-        return `<span class="badge" style="background:${bg};color:${c};">${s}</span>`;
+        const demo = book.isDemo ? ' <span class="badge" style="background:#e0f2fe;color:#075985;">Demo</span>' : '';
+        return `<span class="badge" style="background:${bg};color:${c};">${s}</span>${demo}`;
       };
 
       if (mobile) {
