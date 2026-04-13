@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=1">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
   <title>Upload Book - BlueLeafBooks</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
   <header>
@@ -123,10 +123,10 @@
     </div>
   </div>
 
-  <script src="/js/api.js?v=3"></script>
-  <script src="/js/auth.js"></script>
-  <script src="/js/bookGenres.js?v=1"></script>
-  <script src="/js/books.js?v=3"></script>
+  <script src="./js/api.js?v=3"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/bookGenres.js?v=1"></script>
+  <script src="./js/books.js?v=3"></script>
   <script>
     requireAuth();
 
@@ -153,6 +153,8 @@
       if (isAdmin) {
         const demoWrap = document.getElementById('demo-book-wrap');
         if (demoWrap) demoWrap.style.display = 'block';
+        const demoCb = document.getElementById('isDemo');
+        if (demoCb && !bookId) demoCb.checked = true;
         hasPaypal = true;
         updateSubmitState();
       } else {
