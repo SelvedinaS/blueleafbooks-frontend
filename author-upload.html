@@ -29,7 +29,10 @@
 
       <div id="paypal-section" class="form-group" style="background:#f8f9fa;padding:1rem;border-radius:8px;margin-bottom:1.5rem;display:none;">
         <label><strong>PayPal email (required for author verification and monthly payouts)</strong></label>
-        <p class="muted" style="font-size:0.9rem;margin:0.25rem 0 0.5rem 0;">This address is used for author verification, monthly payout processing, support, and account administration. You can also change it in <a href="/author-dashboard">Dashboard → Payout Settings</a>.</p>
+        <p class="muted" style="font-size:0.9rem;margin:0.25rem 0 0.5rem 0;">
+          This address is used for author verification, monthly payout processing, support, and account administration.
+          You can also change it in <a href="/author-dashboard">Dashboard → Payout Settings</a>.
+        </p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
           <input type="email" id="paypal-email" placeholder="your-paypal@email.com" style="flex:1;min-width:200px;padding:0.5rem;">
           <button type="button" id="save-paypal-btn" class="btn btn-secondary">Save PayPal</button>
@@ -51,46 +54,7 @@
         <div class="form-group">
           <label for="genre">Genre</label>
           <select id="genre" name="genre" required>
-           <option value="">Choose a category</option>
-           <option value="Art & Design">Art & Design</option>
-           <option value="Biography">Biography</option>
-           <option value="Business">Business</option>
-           <option value="Children">Children</option>
-           <option value="Comics & Graphic Novels">Comics & Graphic Novels</option>
-           <option value="Cooking & Food">Cooking & Food</option>
-           <option value="Crafts & Hobbies">Crafts & Hobbies</option>
-           <option value="Education">Education</option>
-           <option value="Entrepreneurship">Entrepreneurship</option>
-           <option value="Fantasy">Fantasy</option>
-           <option value="Fiction">Fiction</option>
-           <option value="Finance">Finance</option>
-           <option value="Health & Fitness">Health & Fitness</option>
-           <option value="History">History</option>
-           <option value="Horror">Horror</option>
-           <option value="Humor">Humor</option>
-           <option value="Language Learning">Language Learning</option>
-           <option value="Lifestyle">Lifestyle</option>
-           <option value="Marketing">Marketing</option>
-           <option value="Memoir">Memoir</option>
-           <option value="Mystery">Mystery</option>
-           <option value="Non-Fiction">Non-Fiction</option>
-           <option value="Parenting">Parenting</option>
-           <option value="Personal Development">Personal Development</option>
-           <option value="Philosophy">Philosophy</option>
-           <option value="Poetry">Poetry</option>
-           <option value="Politics">Politics</option>
-           <option value="Productivity">Productivity</option>
-           <option value="Psychology">Psychology</option>
-           <option value="Relationships">Relationships</option>
-           <option value="Religion & Spirituality">Religion & Spirituality</option>
-           <option value="Romance">Romance</option>
-           <option value="Science">Science</option>
-           <option value="Science Fiction">Science Fiction</option>
-           <option value="Self-Help">Self-Help</option>
-           <option value="Technology">Technology</option>
-           <option value="Thriller">Thriller</option>
-           <option value="Travel">Travel</option>
-           <option value="Writing">Writing</option>
+            <option value="">Choose a category</option>
           </select>
           <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">Choose one professional category from the list.</p>
         </div>
@@ -118,7 +82,7 @@
           <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">Demo books are useful for filling the store before real authors join.</p>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%;" disabled title="Set your PayPal email above to publish books">Submit Book</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Book</button>
       </form>
     </div>
   </div>
@@ -127,6 +91,7 @@
   <script src="./js/auth.js"></script>
   <script src="./js/bookGenres.js?v=1"></script>
   <script src="./js/books.js?v=3"></script>
+
   <script>
     requireAuth();
 
@@ -143,23 +108,31 @@
       const menuBtn = document.querySelector('.menu-btn');
       const nav = document.querySelector('.nav-links');
       if (menuBtn && nav) {
-        menuBtn.addEventListener('click', () => { nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false'); });
+        menuBtn.addEventListener('click', () => {
+          nav.classList.toggle('open');
+          menuBtn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
+        });
       }
+
       const urlParams = new URLSearchParams(window.location.search);
       const bookId = urlParams.get('id');
       const isEditMode = !!bookId;
 
       populateGenreOptions();
+
       if (isAdmin) {
         const demoWrap = document.getElementById('demo-book-wrap');
         if (demoWrap) demoWrap.style.display = 'block';
+
         const demoCb = document.getElementById('isDemo');
         if (demoCb && !bookId) demoCb.checked = true;
+
         hasPaypal = true;
         updateSubmitState();
       } else {
         loadPaypalSettings();
-        document.getElementById('save-paypal-btn').addEventListener('click', savePaypalSettings);
+        const saveBtn = document.getElementById('save-paypal-btn');
+        if (saveBtn) saveBtn.addEventListener('click', savePaypalSettings);
       }
 
       if (isEditMode) {
@@ -167,14 +140,16 @@
         loadBookForEdit(bookId);
       }
 
-
       function populateGenreOptions(selectedValue = '') {
         const select = document.getElementById('genre');
         if (!select) return;
+
         const genres = typeof getBookGenres === 'function' ? getBookGenres() : [];
-        select.innerHTML = '<option value="">Choose a category</option>' + genres.map((genre) => `
-          <option value="${genre}" ${genre === selectedValue ? 'selected' : ''}>${genre}</option>
-        `).join('');
+        select.innerHTML =
+          '<option value="">Choose a category</option>' +
+          genres.map((genre) => `
+            <option value="${genre}" ${genre === selectedValue ? 'selected' : ''}>${genre}</option>
+          `).join('');
       }
 
       async function loadPaypalSettings() {
@@ -182,23 +157,33 @@
           const s = await authorsAPI.getPayoutSettings();
           const email = (s?.payoutPaypalEmail || '').trim();
           hasPaypal = !!email;
+
           document.getElementById('paypal-email').value = email;
+
           const section = document.getElementById('paypal-section');
-          if (section) section.style.display = hasPaypal || isAdmin ? 'none' : 'block';
+          if (section) section.style.display = hasPaypal ? 'none' : 'block';
+
           updateSubmitState();
         } catch (e) {
-          if (!isAdmin) document.getElementById('paypal-section').style.display = 'block';
-          document.getElementById('paypal-alert').innerHTML = '<span class="alert alert-error">Could not load PayPal settings.</span>';
+          document.getElementById('paypal-section').style.display = 'block';
+          document.getElementById('paypal-alert').innerHTML =
+            '<span class="alert alert-error">Could not load PayPal settings.</span>';
           updateSubmitState();
         }
       }
 
       function updateSubmitState() {
         const btn = document.querySelector('#book-form button[type="submit"]');
-        if (btn) {
-          btn.disabled = !(hasPaypal || isAdmin);
-          btn.title = (hasPaypal || isAdmin) ? '' : 'Set your PayPal email above to publish books';
+        if (!btn) return;
+
+        if (isAdmin) {
+          btn.disabled = false;
+          btn.title = '';
+          return;
         }
+
+        btn.disabled = !hasPaypal;
+        btn.title = hasPaypal ? '' : 'Set your PayPal email above to publish books';
       }
 
       async function savePaypalSettings() {
@@ -206,6 +191,7 @@
         const alertEl = document.getElementById('paypal-alert');
         const section = document.getElementById('paypal-section');
         const email = (input.value || '').trim();
+
         if (email) {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!emailRegex.test(email)) {
@@ -213,11 +199,14 @@
             return;
           }
         }
+
         try {
           await authorsAPI.updatePayoutSettings({ payoutPaypalEmail: email || null });
           hasPaypal = !!email;
           alertEl.innerHTML = '<span class="alert alert-success">PayPal saved!</span>';
+
           if (section) section.style.display = hasPaypal ? 'none' : 'block';
+
           updateSubmitState();
           setTimeout(() => { alertEl.innerHTML = ''; }, 3000);
         } catch (e) {
@@ -228,22 +217,26 @@
       async function loadBookForEdit(id) {
         try {
           const book = await booksAPI.getById(id);
-          document.getElementById('title').value = book.title;
-          document.getElementById('description').value = book.description;
-          populateGenreOptions(book.genre);
-          document.getElementById('price').value = book.price;
-          if (isAdmin && document.getElementById('isDemo')) document.getElementById('isDemo').checked = !!book.isDemo;
+          document.getElementById('title').value = book.title || '';
+          document.getElementById('description').value = book.description || '';
+          populateGenreOptions(book.genre || '');
+          document.getElementById('price').value = book.price ?? '';
+
+          if (isAdmin && document.getElementById('isDemo')) {
+            document.getElementById('isDemo').checked = !!book.isDemo;
+          }
         } catch (error) {
           alert('Error loading book: ' + error.message);
-          window.location.href = '/author-dashboard';
+          window.location.href = isAdmin ? '/admin-dashboard' : '/author-dashboard';
         }
       }
 
       document.getElementById('book-form').addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        if (!(hasPaypal || isAdmin)) {
-          document.getElementById('alert-container').innerHTML = '<div class="alert alert-error">You must set your PayPal email before publishing. Enter it above and click Save PayPal.</div>';
+        if (!isAdmin && !hasPaypal) {
+          document.getElementById('alert-container').innerHTML =
+            '<div class="alert alert-error">You must set your PayPal email before publishing. Enter it above and click Save PayPal.</div>';
           return;
         }
 
@@ -251,16 +244,18 @@
         alertContainer.innerHTML = '';
 
         const formData = new FormData();
-        formData.append('title', document.getElementById('title').value);
-        formData.append('description', document.getElementById('description').value);
+        formData.append('title', document.getElementById('title').value.trim());
+        formData.append('description', document.getElementById('description').value.trim());
         formData.append('genre', document.getElementById('genre').value);
         formData.append('price', document.getElementById('price').value);
 
         const coverFile = document.getElementById('coverImage').files[0];
         const pdfFile = document.getElementById('pdfFile').files[0];
 
-        const isDemo = isAdmin && !!document.getElementById('isDemo')?.checked;
-        if (isDemo) formData.append('isDemo', 'true');
+        const isDemoChecked = isAdmin && !!document.getElementById('isDemo')?.checked;
+        if (isDemoChecked) {
+          formData.append('isDemo', 'true');
+        }
 
         if (isEditMode) {
           if (coverFile) formData.append('coverImage', coverFile);
@@ -274,17 +269,28 @@
           formData.append('pdfFile', pdfFile);
         }
 
+        const submitBtn = document.querySelector('#book-form button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = isEditMode ? 'Saving...' : 'Uploading...';
+        }
+
         try {
           if (isEditMode) {
             await booksAPI.update(bookId, formData);
             alert('Book updated successfully! It is now live on the store.');
           } else {
             await booksAPI.create(formData);
-            alert('Book submitted successfully! It is now live on the store.');
+            alert(isAdmin ? 'Demo book submitted successfully!' : 'Book submitted successfully! It is now live on the store.');
           }
+
           window.location.href = isAdmin ? '/admin-dashboard' : '/author-dashboard';
         } catch (error) {
           alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Book';
+          }
         }
       });
     });
