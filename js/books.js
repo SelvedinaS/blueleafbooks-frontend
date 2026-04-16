@@ -62,7 +62,6 @@ function displayBooks(books, containerId) {
             <div class="book-card-author">${authorName}</div>
             <div class="book-card-price">$${price}</div>
             <div class="book-card-rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${ratingCount})</div>
-            <div style="font-size:0.9rem;color:#666;margin-top:0.35rem;">Sold ${salesCount} time${salesCount === 1 ? '' : 's'}</div>
           </div>
         </div>
       `;
@@ -107,6 +106,7 @@ function displayBookDetails(book) {
 
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   const isCustomer = !!(user && user.role === 'customer');
+  const isGuest = !user;
   const token = typeof getAuthToken === 'function' ? getAuthToken() : null;
 
   const hasPrice = !!(book?.price && Number(book.price) > 0);
@@ -145,7 +145,6 @@ function displayBookDetails(book) {
         </div>
         <div class="price">$${price}</div>
         <div class="rating" id="book-average-rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)} (${ratingCount} reviews)</div>
-        <div class="muted" style="margin-top:0.35rem;">Sold ${salesCount} time${salesCount === 1 ? '' : 's'}</div>
 
         <div class="description">
           <h3>Description</h3>
@@ -159,9 +158,7 @@ function displayBookDetails(book) {
             ? `<p class="alert alert-info">This is a demo book for platform preview.</p>`
             : !hasPrice || !hasPdf
             ? `<p class="alert alert-info">This book is not available for purchase at the moment.</p>`
-            : !user
-            ? `<p class="alert alert-info">Please <a href="/login">login</a> to purchase this book.</p>`
-            : isCustomer
+            : (isGuest || isCustomer)
             ? `
                 <button class="btn btn-primary" onclick="buyNow('${book._id}', ${isDemo})" style="margin-right: 0.5rem;">Buy Now</button>
                 <button class="btn btn-secondary" onclick="addToCart('${book._id}', ${isDemo})">Add to Cart</button>
