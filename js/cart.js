@@ -114,14 +114,8 @@ function proceedToCheckout() {
   }
 
   if ((currentCartBooks || []).some(book => book.isDemo)) {
-    alert('Remove demo books from your cart before checkout.');
-    return;
-  }
-
-  if (!isAuthenticated()) {
-    alert('Please login to checkout');
-    window.location.href = '/login';
-    return;
+    // Demo knjige su samo za pregled i ne ulaze u naplatu,
+    // ali više ne blokiraju odlazak na checkout.
   }
 
   window.location.href = '/checkout';
