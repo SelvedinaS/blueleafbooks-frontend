@@ -351,18 +351,20 @@ function renderPayPalButtons() {
       }
 
       const createdOrder = await ordersAPI.create(orderData);
-      await autoDownloadPurchasedBooks(createdOrder);
+      const downloadAllUrl = createdOrder && createdOrder.downloadAllUrl ? String(createdOrder.downloadAllUrl) : '';
 
       localStorage.removeItem('cart');
       appliedCoupon = null;
 
-      alert('Payment successful! Your book download is starting.');
-      const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-      if (user && user.role === 'customer') {
-        window.location.href = '/customer-dashboard';
-      } else {
-        window.location.href = '/';
+      alert('Payment successful! Download is starting now.');
+      if (downloadAllUrl) {
+        window.location.href = downloadAllUrl;
+        return;
       }
+
+      await autoDownloadPurchasedBooks(createdOrder);
+      const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+      window.location.href = (user && user.role === 'customer') ? '/customer-dashboard' : '/';
     },
     onError: (err) => {
       console.error('PayPal error:', err);
