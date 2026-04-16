@@ -290,6 +290,29 @@ function renderPayPalButtons() {
   const container = document.getElementById('paypal-button-container');
   if (!container) return;
 
+  async function autoDownloadPurchasedBooks(orderResponse) {
+    const items = Array.isArray(orderResponse?.items) ? orderResponse.items : [];
+    const downloadLinks = items
+      .map((it) => it?.book?.directPdfUrl || it?.book?.pdfFile || '')
+      .filter(Boolean);
+
+    if (!downloadLinks.length) return;
+
+    // Trigger browser downloads one by one
+    downloadLinks.forEach((url, idx) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }, idx * 250);
+    });
+  }
+
   paypal.Buttons({
     createOrder: async () => {
       const items = cartBooks.map(b => ({ bookId: b._id }));
@@ -327,13 +350,19 @@ function renderPayPalButtons() {
         orderData.discountCode = appliedCoupon.discountCode;
       }
 
-      await ordersAPI.create(orderData);
+      const createdOrder = await ordersAPI.create(orderData);
+      await autoDownloadPurchasedBooks(createdOrder);
 
       localStorage.removeItem('cart');
       appliedCoupon = null;
 
-      alert('Payment successful! Redirecting to your library...');
-      window.location.href = '/customer-dashboard';
+      alert('Payment successful! Your book download is starting.');
+      const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+      if (user && user.role === 'customer') {
+        window.location.href = '/customer-dashboard';
+      } else {
+        window.location.href = '/';
+      }
     },
     onError: (err) => {
       console.error('PayPal error:', err);
