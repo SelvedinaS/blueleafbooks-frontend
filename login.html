@@ -56,11 +56,11 @@
       const token = params.get('verify');
       if (!token) return;
 
-      alertContainer.innerHTML = `<div class="alert alert-info">Verifying your email...</div>`;
+      alertContainer.innerHTML = `<div class="alert alert-info">Checking account status...</div>`;
       try {
         const res = await fetch(`${API_BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`);
         const data = await safeJson(res);
-        alertContainer.innerHTML = `<div class="alert alert-info">${data.message || 'Email verified. You can log in now.'}</div>`;
+        alertContainer.innerHTML = `<div class="alert alert-info">${data.message || 'You can log in now.'}</div>`;
 
         // Clean URL
         params.delete('verify');
@@ -68,7 +68,7 @@
         const newUrl = `${window.location.pathname}${next ? '?' + next : ''}`;
         window.history.replaceState({}, document.title, newUrl);
       } catch (e) {
-        alertContainer.innerHTML = `<div class="alert alert-error">${e.message || 'Verification failed.'}</div>`;
+        alertContainer.innerHTML = `<div class="alert alert-error">${e.message || 'Unable to check verification status.'}</div>`;
       }
     }
 
