@@ -71,18 +71,17 @@
 
       try {
         const response = await authAPI.register({ name, email, password, role });
-        
-        setAuthToken(response.token);
-        setCurrentUser(response.user);
-        
-        // Redirect based on role
-        if (response.user.role === 'customer') {
-          window.location.href = '/customer-dashboard';
-        } else if (response.user.role === 'author') {
-          window.location.href = '/author-dashboard';
-        } else {
-          window.location.href = '/';
-        }
+
+        alertContainer.innerHTML = `
+          <div class="alert alert-info">
+            ${response.message || 'Account created. Please verify your email to log in.'}
+          </div>
+        `;
+
+        // Send user to login after a short delay (they need to verify first)
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1200);
       } catch (error) {
         alertContainer.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
       }

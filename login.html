@@ -50,6 +50,28 @@
   <script src="./js/api.js?v=3"></script>
   <script src="./js/auth.js"></script>
   <script>
+    async function tryVerifyFromUrl() {
+      const alertContainer = document.getElementById('alert-container');
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('verify');
+      if (!token) return;
+
+      alertContainer.innerHTML = `<div class="alert alert-info">Verifying your email...</div>`;
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`);
+        const data = await safeJson(res);
+        alertContainer.innerHTML = `<div class="alert alert-info">${data.message || 'Email verified. You can log in now.'}</div>`;
+
+        // Clean URL
+        params.delete('verify');
+        const next = params.toString();
+        const newUrl = `${window.location.pathname}${next ? '?' + next : ''}`;
+        window.history.replaceState({}, document.title, newUrl);
+      } catch (e) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${e.message || 'Verification failed.'}</div>`;
+      }
+    }
+
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -89,6 +111,7 @@
           btn.setAttribute('aria-expanded', nav.classList.contains('open') ? 'true' : 'false');
         });
       }
+      tryVerifyFromUrl();
     });
   </script>
 
