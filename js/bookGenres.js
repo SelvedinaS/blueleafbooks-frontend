@@ -6,6 +6,7 @@ const BOOK_GENRES = [
   'Comics & Graphic Novels',
   'Cooking & Food',
   'Crafts & Hobbies',
+  'Digital Planners',
   'Education',
   'Entrepreneurship',
   'Fantasy',

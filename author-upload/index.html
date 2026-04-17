@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
-  <title>Upload Book - BlueLeafBooks</title>
+  <title>Upload Product - BlueLeafBooks</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
@@ -24,7 +24,7 @@
 
   <div class="container">
     <div class="form-container" style="max-width: 700px;">
-      <h2 id="form-title">Upload New Book</h2>
+      <h2 id="form-title">Upload New Product</h2>
       <div id="alert-container"></div>
 
       <div id="paypal-section" class="form-group" style="background:#f8f9fa;padding:1rem;border-radius:8px;margin-bottom:1.5rem;display:none;">
@@ -49,7 +49,16 @@
         </div>
 
         <div class="form-group">
-          <label for="genre">Genre</label>
+          <label for="productType">Product Type</label>
+          <select id="productType" name="productType" required>
+            <option value="book">Book</option>
+            <option value="planner">Planner</option>
+          </select>
+          <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">Choose whether you are uploading a book or a planner.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="genre">Category</label>
           <select id="genre" name="genre" required>
            <option value="">Choose a category</option>
            <option value="Art & Design">Art & Design</option>
@@ -106,19 +115,20 @@
         </div>
 
         <div class="form-group">
-          <label for="pdfFile">PDF File</label>
-          <input type="file" id="pdfFile" name="pdfFile" accept=".pdf">
+          <label for="pdfFile">Product File</label>
+          <input type="file" id="pdfFile" name="productFile" accept=".pdf,.zip">
+          <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">You can upload a PDF or ZIP file.</p>
         </div>
 
         <div id="demo-book-wrap" class="form-group" style="display:none;">
           <label style="display:flex;align-items:center;gap:0.5rem;">
             <input type="checkbox" id="isDemo" name="isDemo">
-            <span>Save as demo book</span>
+            <span>Save as demo product</span>
           </label>
-          <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">Demo books are useful for filling the store before real authors join.</p>
+          <p class="muted" style="margin-top:0.4rem;font-size:0.9rem;">Demo products are useful for filling the store before real authors join.</p>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%;" disabled title="Set your PayPal email above to publish books">Submit Book</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%;" disabled title="Set your PayPal email above to publish products">Submit Product</button>
       </form>
     </div>
   </div>
@@ -162,8 +172,21 @@
         document.getElementById('save-paypal-btn').addEventListener('click', savePaypalSettings);
       }
 
+      const productTypeEl = document.getElementById('productType');
+      const genreEl = document.getElementById('genre');
+      if (productTypeEl && genreEl) {
+        productTypeEl.addEventListener('change', () => {
+          if (productTypeEl.value === 'planner' && !genreEl.value) {
+            genreEl.value = 'Digital Planners';
+          }
+        });
+        genreEl.addEventListener('change', () => {
+          if (genreEl.value === 'Digital Planners') productTypeEl.value = 'planner';
+        });
+      }
+
       if (isEditMode) {
-        document.getElementById('form-title').textContent = 'Edit Book';
+        document.getElementById('form-title').textContent = 'Edit Product';
         loadBookForEdit(bookId);
       }
 
@@ -197,7 +220,7 @@
         const btn = document.querySelector('#book-form button[type="submit"]');
         if (btn) {
           btn.disabled = !(hasPaypal || isAdmin);
-          btn.title = (hasPaypal || isAdmin) ? '' : 'Set your PayPal email above to publish books';
+          btn.title = (hasPaypal || isAdmin) ? '' : 'Set your PayPal email above to publish products';
         }
       }
 
@@ -253,6 +276,7 @@
         const formData = new FormData();
         formData.append('title', document.getElementById('title').value);
         formData.append('description', document.getElementById('description').value);
+        formData.append('productType', document.getElementById('productType').value);
         formData.append('genre', document.getElementById('genre').value);
         formData.append('price', document.getElementById('price').value);
 
@@ -264,20 +288,20 @@
 
         if (isEditMode) {
           if (coverFile) formData.append('coverImage', coverFile);
-          if (pdfFile) formData.append('pdfFile', pdfFile);
+          if (pdfFile) formData.append('productFile', pdfFile);
         } else {
           if (!coverFile || !pdfFile) {
-            alertContainer.innerHTML = '<div class="alert alert-error">Cover image and PDF file are required</div>';
+            alertContainer.innerHTML = '<div class="alert alert-error">Cover image and product file are required</div>';
             return;
           }
           formData.append('coverImage', coverFile);
-          formData.append('pdfFile', pdfFile);
+          formData.append('productFile', pdfFile);
         }
 
         try {
           if (isEditMode) {
             await booksAPI.update(bookId, formData);
-            alert('Book updated successfully! It is now live on the store.');
+            alert('Product updated successfully! It is now live on the store.');
           } else {
             await booksAPI.create(formData);
             alert('Book submitted successfully! It is now live on the store.');
