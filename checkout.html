@@ -261,7 +261,7 @@
     if (!document.getElementById('paypal-sdk')) {
       const script = document.createElement('script');
       script.id = 'paypal-sdk';
-      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&components=buttons`;
+     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&components=buttons&disable-funding=card`;
       script.onload = () => {
         try {
           container.innerHTML = '';
