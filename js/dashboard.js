@@ -256,27 +256,24 @@ async function displayAuthorDashboard(data) {
   const adminEmail = data.adminPaymentEmail || 'blueleafbooks@hotmail.com';
   const minimumPayoutThreshold = 25;
 
-  const lastMonthFee = Number(data.lastMonth?.feeDue || 0);
-  const currentMonthFee = Number(data.currentMonth?.feeAccrued || 0);
   const lastMonthGross = Number(data.lastMonth?.grossSales || 0);
   const currentMonthGross = Number(data.currentMonth?.grossSalesAccrued || 0);
-  const lastMonthPayoutAmount = money(Math.max(0, lastMonthGross - lastMonthFee));
-  const currentMonthEstimatedPayout = money(Math.max(0, currentMonthGross - currentMonthFee));
+  const lastMonthPayoutAmount = money(Math.max(0, lastMonthGross));
+  const currentMonthEstimatedPayout = money(Math.max(0, currentMonthGross));
+
+  const formatPayoutWindow = (periodEnd) => {
+    const end = new Date(periodEnd);
+    if (!end || Number.isNaN(end.getTime())) return '-';
+    const payoutMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+    return `1st–10th ${payoutMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
+  };
 
   const lastMonthPeriod = data.lastMonth?.period || '-';
   const lastMonthPaid = !!data.lastMonth?.status?.isPaid;
-  const lastMonthPayoutDate = data.lastMonth?.period ? (() => {
-    const end = data.lastMonth?.end ? new Date(data.lastMonth.end) : null;
-    if (!end || Number.isNaN(end.getTime())) return '-';
-    return new Date(end.getFullYear(), end.getMonth(), 1).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-  })() : '-';
+  const lastMonthPayoutDate = data.lastMonth?.end ? formatPayoutWindow(data.lastMonth.end) : '-';
 
   const currentMonthPeriod = data.currentMonth?.period || '-';
-  const nextPayoutDate = data.currentMonth?.end ? (() => {
-    const end = new Date(data.currentMonth.end);
-    if (Number.isNaN(end.getTime())) return '-';
-    return new Date(end.getFullYear(), end.getMonth(), 1).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-  })() : '-';
+  const nextPayoutDate = data.currentMonth?.end ? formatPayoutWindow(data.currentMonth.end) : '-';
 
   const topBook = data.topBook || null;
   const topRatedBook = data.topRatedBook || null;
@@ -324,8 +321,8 @@ async function displayAuthorDashboard(data) {
       </div>
 
       <p class="muted">
-        BlueLeafBooks receives customer payments, deducts a fixed <strong>5%</strong> platform fee on each completed sale,
-        and processes eligible author payouts on or around the <strong>1st of each month</strong>.
+        BlueLeafBooks receives customer payments and authors receive <strong>100%</strong> of each completed sale.
+        Eligible author payouts are processed once per month, between the <strong>1st and 10th</strong> of each month.
         Balances below <strong>$${minimumPayoutThreshold}</strong> are automatically carried forward to the next payout cycle.
       </p>
 
@@ -340,8 +337,8 @@ async function displayAuthorDashboard(data) {
         </div>
 
         <div>
-          <div class="muted" style="font-size:0.9rem;">Fee rate</div>
-          <div style="font-weight:800;">5% platform fee (calculated from total sales)</div>
+          <div class="muted" style="font-size:0.9rem;">Author share</div>
+          <div style="font-weight:800;">100% of sales (no platform fee)</div>
         </div>
       </div>
 
@@ -356,7 +353,7 @@ async function displayAuthorDashboard(data) {
             Status:
             ${lastMonthPaid ? '<span class="badge badge-success">PAID</span>' : '<span class="badge badge-warning">PENDING</span>'}
           </div>
-          ${!lastMonthPaid ? `<div class="muted" style="font-size:0.85rem; margin-top:0.45rem;">Payout will be processed at the beginning of the next month if the minimum threshold is reached.</div>` : ''}
+          ${!lastMonthPaid ? `<div class="muted" style="font-size:0.85rem; margin-top:0.45rem;">Payout will be processed between the 1st and 10th of the next month if the minimum threshold is reached.</div>` : ''}
         </div>
 
         <div class="fee-box">
@@ -420,7 +417,7 @@ async function displayAuthorDashboard(data) {
         <h2>Monthly Reports</h2>
       </div>
       <p class="muted">
-        Download a PDF report of your monthly earnings, including each sale, platform fee (5%), and your net income.
+        Download a PDF report of your monthly earnings, including each sale and your total income.
         This report is for your records and tax reporting.
       </p>
       <div id="author-reports-alert"></div>

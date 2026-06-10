@@ -243,7 +243,7 @@
       ]);
 
       const rows = (feeData && feeData.rows) ? feeData.rows : [];
-      const feePct = feeData && feeData.feePercentage ? feeData.feePercentage : 5;
+      const feePct = feeData && feeData.feePercentage != null ? feeData.feePercentage : 0;
 
       const allMembers = authors || [];
 
@@ -252,9 +252,9 @@
         <h2>All Authors</h2>
 
         <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
-          <h3 style="margin-bottom: 0.5rem;">Manual Platform Fee Status</h3>
+          <h3 style="margin-bottom: 0.5rem;">Platform Fee Status</h3>
           <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
-            Authors pay the platform fee manually. Use this table to track who has paid for each month and block/unblock if needed.
+            Authors receive 100% of sales — no platform fee is charged. This section is retained for historical records only.
           </p>
 
           <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
@@ -311,7 +311,7 @@
         <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <h3 style="margin-bottom: 0.5rem;">Author Membership Groups</h3>
           <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
-            All authors pay a fixed 5% platform fee on completed sales. Use this section to review author accounts and payment details.
+            Authors receive 100% of completed sales. Use this section to review author accounts and payout details.
           </p>
 
           <div style="overflow:auto;">
@@ -344,7 +344,7 @@
         <div style="margin: 1rem 0 2rem 0; background: var(--white); padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <h3 style="margin-bottom: 0.5rem;">Monthly Reports</h3>
           <p style="color:#666; margin-bottom:0.75rem; font-size:0.95rem;">
-            Download monthly earnings PDFs for any author to verify sales, platform fees, and their net income.
+            Download monthly earnings PDFs for any author to verify sales and their total income.
           </p>
           <div id="admin-author-reports-alert"></div>
           <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end;">
@@ -680,10 +680,10 @@
 
       const container = document.getElementById('dashboard-content');
       container.innerHTML = `
-        <h2>Platform Fees (Authors pay you 5%)</h2>
+        <h2>Platform Fees</h2>
         <p class="alert alert-info">
-          Fee is calculated per calendar month at a fixed <strong>5%</strong>. Payment deadline is the <strong>10th</strong> of the next month.
-          Payment email: <strong>blueleafbooks@hotmail.com</strong>
+          Authors receive <strong>100%</strong> of sales — no platform fee applies. Author payouts are processed between the <strong>1st and 10th</strong> of each month.
+          Support email: <strong>blueleafbooks@hotmail.com</strong>
         </p>
 
         <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; margin-bottom:1rem;">
@@ -740,7 +740,7 @@
         <h3 style="margin-bottom:0.5rem;">Fee report for ${feeReport?.period || period} (Due by ${dueDate})</h3>
         <div style="overflow:auto; background:var(--white); border:1px solid var(--border-color); border-radius:8px;">
           <table>
-            <thead><tr><th>Author</th><th>Email</th><th>PayPal</th><th>Gross Sales</th><th>Fee Due (5%)</th><th>Status</th><th>Overdue</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Author</th><th>Email</th><th>PayPal</th><th>Gross Sales</th><th>Fee Due</th><th>Status</th><th>Overdue</th><th>Actions</th></tr></thead>
             <tbody>
               ${rows.length === 0 ? '<tr><td colspan="8">No data</td></tr>' : rows.map(r => `
                 <tr>
@@ -798,7 +798,7 @@ async function loadPayouts() {
       const payouts = await adminAPI.getPayouts();
       const container = document.getElementById('dashboard-content');
       const mobile = isMobileView();
-      const infoHtml = '<p class="alert alert-info">Unpaid earnings for authors. Mark as paid after processing monthly payouts.</p>';
+      const infoHtml = '<p class="alert alert-info">Unpaid earnings for authors. Mark as paid after processing monthly payouts (between the 1st and 10th of each month).</p>';
 
       if (mobile) {
         container.innerHTML = `<h2>Author Payouts</h2>${infoHtml}<div class="mobile-cards">

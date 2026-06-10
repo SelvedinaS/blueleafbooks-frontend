@@ -131,7 +131,7 @@ const booksAPI = {
 
   getBestsellers: () => apiRequest('/books/featured/bestsellers'),
 
-  getNew: () => apiRequest('/books/featured/new'),
+  getNew: () => apiRequest('/books/featured/new?limit=4'),
 
   getCurated: (limit) => apiRequest(`/books/featured/curated${limit ? '?limit=' + encodeURIComponent(limit) : ''}`),
 
